@@ -873,3 +873,118 @@ a:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* ===== Tag Input Widget ===== */
+.tag-input-wrapper {
+    position: relative;
+}
+
+.tag-input-field {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+}
+
+.tag-input-field:focus {
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 3px rgba(74,144,217,0.12);
+}
+
+.tag-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.tag-suggestions.visible {
+    display: block;
+}
+
+.tag-suggestion-item {
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    color: #555;
+    transition: background 0.15s;
+}
+
+.tag-suggestion-item:hover,
+.tag-suggestion-item.active {
+    background: #e3f2fd;
+    color: #333;
+}
+
+.tag-suggestion-item.highlight {
+    font-weight: 600;
+    color: #4a90d9;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    min-height: 32px;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: #e3f2fd;
+    color: #1565c0;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    animation: tagIn 0.15s ease;
+}
+
+@keyframes tagIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.tag-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: rgba(21,101,192,0.15);
+    color: #1565c0;
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s;
+}
+
+.tag-chip-remove:hover {
+    background: rgba(21,101,192,0.3);
+}
+
+.tag-hidden-input {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+}

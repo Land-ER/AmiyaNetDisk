@@ -13,6 +13,23 @@ from app.forms import UploadForm, FileEditForm
 from app.decorators import admin_required
 from app.utils import allowed_file, get_file_extension, format_file_size, load_json_tags, dump_json_tags
 
+
+def _get_all_tags():
+    """获取数据库中所有已有的标签（去重排序）"""
+    all_files = File.query.with_entities(File.search_tags, File.display_tags).all()
+    tags = set()
+    for st, dt in all_files:
+        if st:
+            tags.update(t.strip() for t in load_json_tags(st) if t.strip())
+        if dt:
+            tags.update(t.strip() for t in load_json_tags(dt) if t.strip())
+    return sorted(tags)
+
+
+def _get_admin_context():
+    """管理后台模板公共上下文"""
+    return {'all_tags_json': json.dumps(_get_all_tags(), ensure_ascii=False)}
+
 admin_bp = Blueprint('admin', __name__, template_folder='../templates/admin')
 
 
@@ -74,7 +91,8 @@ def upload():
         # 检查文件扩展名
         if not allowed_file(uploaded_file.filename):
             flash('不支持的文件类型', 'danger')
-            return render_template('admin/upload.html', form=form)
+            return render_template('admin/upload.html', form=form,
+                                   all_tags_json=json.dumps(_get_all_tags(), ensure_ascii=False))
 
         # 读取文件内容并计算哈希
         file_data = uploaded_file.read()
@@ -123,7 +141,8 @@ def upload():
         flash(f'文件 "{title}" 上传成功', 'success')
         return redirect(url_for('admin.file_list'))
 
-    return render_template('admin/upload.html', form=form)
+    return render_template('admin/upload.html', form=form,
+                           all_tags_json=json.dumps(_get_all_tags(), ensure_ascii=False))
 
 
 @admin_bp.route('/file/<int:file_id>/edit', methods=['GET', 'POST'])
@@ -166,7 +185,8 @@ def edit_file(file_id):
     form.search_tags.data = ', '.join(load_json_tags(file_record.search_tags))
     form.display_tags.data = ', '.join(load_json_tags(file_record.display_tags))
 
-    return render_template('admin/edit_file.html', form=form, file=file_record)
+    return render_template('admin/edit_file.html', form=form, file=file_record,
+                           all_tags_json=json.dumps(_get_all_tags(), ensure_ascii=False))
 
 
 @admin_bp.route('/file/<int:file_id>/delete', methods=['POST'])
