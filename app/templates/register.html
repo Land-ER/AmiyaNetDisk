@@ -92,21 +92,23 @@ function sendCode() {
 }
 
 document.getElementById('registerForm')?.addEventListener('submit', function(e) {
-    try {
-        const pwd = document.getElementById('password');
-        if (pwd && !pwd.dataset.hashed) {
-            e.preventDefault();
-            var form = this;
-            Promise.resolve(hashPassword(pwd.value)).then(function(hash) {
-                pwd.value = hash;
-                pwd.dataset.hashed = 'true';
-                form.submit();
-            }).catch(function() {
-                pwd.dataset.hashed = 'true';
-                form.submit();
-            });
-        }
-    } catch(_) {}
+    var pwd = document.getElementById('password');
+    if (!pwd || pwd.dataset.hashed) return;
+    e.preventDefault();
+    var form = this;
+    if (typeof hashPassword !== 'function') {
+        pwd.dataset.hashed = 'true';
+        form.submit();
+        return;
+    }
+    hashPassword(pwd.value).then(function(hash) {
+        pwd.value = hash;
+        pwd.dataset.hashed = 'true';
+        form.submit();
+    }).catch(function() {
+        pwd.dataset.hashed = 'true';
+        form.submit();
+    });
 });
 </script>
 {% endblock %}

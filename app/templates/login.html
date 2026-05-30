@@ -35,23 +35,24 @@
 {% block scripts %}
 <script>
 document.querySelector('.auth-form')?.addEventListener('submit', function(e) {
-    try {
-        var pwd = document.getElementById('password');
-        if (pwd && !pwd.dataset.hashed) {
-            e.preventDefault();
-            var form = this;
-            Promise.resolve(hashPassword(pwd.value)).then(function(hash) {
-                pwd.value = hash;
-                pwd.dataset.hashed = 'true';
-                form.submit();
-            }).catch(function() {
-                pwd.dataset.hashed = 'true';
-                form.submit();
-            });
-        }
-    } catch(e) {
-        // 任何异常都不阻塞表单提交
+    var pwd = document.getElementById('password');
+    if (!pwd || pwd.dataset.hashed) return;
+    e.preventDefault();
+    var form = this;
+    // hashPassword 可能未定义（main.js 未加载），兜底直接提交
+    if (typeof hashPassword !== 'function') {
+        pwd.dataset.hashed = 'true';
+        form.submit();
+        return;
     }
+    hashPassword(pwd.value).then(function(hash) {
+        pwd.value = hash;
+        pwd.dataset.hashed = 'true';
+        form.submit();
+    }).catch(function() {
+        pwd.dataset.hashed = 'true';
+        form.submit();
+    });
 });
 </script>
 {% endblock %}
