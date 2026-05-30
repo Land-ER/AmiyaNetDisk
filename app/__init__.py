@@ -1,4 +1,6 @@
 import os
+import hashlib
+from datetime import datetime, timezone
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -46,32 +48,48 @@ def create_app(config_name=None):
         db.create_all()
         _ensure_root_user(app)
 
+    # 模板上下文注入
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.now(timezone.utc)}
+
     return app
 
 
 def _ensure_root_user(app):
-    """确保 root 用户存在（首次启动时创建）"""
+    """确保 root 用户存在（每次启动时检查配置一致性）"""
     root_email = app.config['ROOT_EMAIL']
     root_password = app.config['ROOT_PASSWORD']
 
+    # 前端传输的是 SHA-256(明文)，所以 root 密码也要哈希后存储
+    hashed_pwd = hashlib.sha256(root_password.encode('utf-8')).hexdigest()
+    pwd_hash = generate_password_hash(hashed_pwd)
+
     root_user = User.query.filter_by(role='root').first()
-    if not root_user:
-        # 检查是否有对应邮箱的用户
-        existing = User.query.filter_by(email=root_email).first()
-        if existing:
-            existing.role = 'root'
-            db.session.commit()
-            app.logger.info(f'已将用户 {root_email} 升级为 root')
-        else:
-            user = User(
-                email=root_email,
-                password_hash=generate_password_hash(root_password),
-                role='root',
-                is_active=True,
-            )
-            db.session.add(user)
-            db.session.commit()
-            app.logger.info(f'已创建 root 用户: {root_email}')
+    if root_user:
+        root_user.email = root_email
+        root_user.password_hash = pwd_hash
+        db.session.commit()
+        app.logger.info(f'root 账号已同步配置: {root_email}')
+        return
+
+    # 检查配置邮箱是否已被其他用户使用
+    existing = User.query.filter_by(email=root_email).first()
+    if existing:
+        existing.role = 'root'
+        existing.password_hash = pwd_hash
+        db.session.commit()
+        app.logger.info(f'已将用户 {root_email} 升级为 root')
+    else:
+        user = User(
+            email=root_email,
+            password_hash=pwd_hash,
+            role='root',
+            is_active=True,
+        )
+        db.session.add(user)
+        db.session.commit()
+        app.logger.info(f'已创建 root 用户: {root_email}')
 
 
 @login_manager.user_loader
