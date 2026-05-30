@@ -21,6 +21,8 @@ async function sha256(str) {
         return str;
     }
 }
+// 模板中调用的是 hashPassword，作为 sha256 的别名
+var hashPassword = sha256;
 
 /**
  * 格式化文件大小
