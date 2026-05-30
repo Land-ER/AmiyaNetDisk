@@ -1,7 +1,7 @@
 import os
 import json
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
@@ -145,7 +145,7 @@ def edit_file(file_id):
         file_record.display_tags = dump_json_tags(
             [t.strip() for t in display_tags_str.split(',') if t.strip()]
         ) if display_tags_str else '[]'
-        file_record.updated_at = datetime.now(timezone.utc)
+        file_record.updated_at = datetime.utcnow()
 
         # 操作日志
         log = OperationLog(

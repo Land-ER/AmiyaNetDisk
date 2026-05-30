@@ -1,6 +1,6 @@
 import os
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -51,7 +51,7 @@ def create_app(config_name=None):
     # 模板上下文注入
     @app.context_processor
     def inject_now():
-        return {'now': datetime.now(timezone.utc)}
+        return {'now': datetime.utcnow()}
 
     return app
 

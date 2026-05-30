@@ -1,7 +1,11 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timezone
+from datetime import datetime
 
 db = SQLAlchemy()
+
+# SQLite 不保存时区信息，统一使用 naive UTC
+def _utcnow():
+    return datetime.utcnow()
 
 
 class User(db.Model):
@@ -12,7 +16,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')  # user, admin, root
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     def __repr__(self):
         return f'<User {self.email} ({self.role})>'
@@ -47,9 +51,9 @@ class File(db.Model):
     display_tags = db.Column(db.Text, default='[]')  # JSON array string
     uploader_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     download_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
-                           onupdate=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=_utcnow)
+    updated_at = db.Column(db.DateTime, default=_utcnow,
+                           onupdate=_utcnow)
 
     uploader = db.relationship('User', backref=db.backref('uploaded_files', lazy='dynamic'))
 
@@ -63,14 +67,14 @@ class VerificationCode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), nullable=False, index=True)
     code = db.Column(db.String(6), nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=_utcnow)
     used = db.Column(db.Boolean, default=False)
 
     def is_expired(self):
         """验证码是否过期（有效期10分钟）"""
         from datetime import timedelta
         expire_time = self.created_at + timedelta(minutes=10)
-        return datetime.now(timezone.utc) > expire_time
+        return datetime.utcnow() > expire_time
 
 
 class DownloadLog(db.Model):
@@ -80,7 +84,7 @@ class DownloadLog(db.Model):
     file_id = db.Column(db.Integer, db.ForeignKey('files.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     ip_address = db.Column(db.String(45), nullable=True)
-    downloaded_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    downloaded_at = db.Column(db.DateTime, default=_utcnow)
 
     file = db.relationship('File', backref=db.backref('download_logs', lazy='dynamic'))
     user = db.relationship('User', backref=db.backref('download_logs', lazy='dynamic'))
@@ -97,7 +101,7 @@ class OperationLog(db.Model):
     action = db.Column(db.String(50), nullable=False)
     target_id = db.Column(db.Integer, nullable=True)
     detail = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     admin = db.relationship('User', backref=db.backref('operation_logs', lazy='dynamic'))
 

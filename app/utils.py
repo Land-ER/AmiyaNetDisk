@@ -3,7 +3,7 @@ import random
 import smtplib
 import json
 from email.mime.text import MIMEText
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from flask import current_app
 from app.models import VerificationCode, db
 
@@ -13,7 +13,7 @@ def send_verification_code(email):
     # 检查60秒内是否已发送
     recent = VerificationCode.query.filter_by(email=email, used=False)\
         .order_by(VerificationCode.created_at.desc()).first()
-    if recent and (datetime.now(timezone.utc) - recent.created_at).total_seconds() < 60:
+    if recent and (datetime.utcnow() - recent.created_at).total_seconds() < 60:
         return False, '发送太频繁，请60秒后再试'
 
     # 生成6位数字验证码
@@ -32,7 +32,12 @@ def send_verification_code(email):
         msg['To'] = email
 
         server = smtplib.SMTP(current_app.config['SMTP_SERVER'],
-                              current_app.config['SMTP_PORT'])
+                              current_app.config['SMTP_PORT'], timeout=10)
+        server.ehlo()
+        # 尝试 STARTTLS（QQ邮箱等需要加密）
+        if server.has_extn('STARTTLS'):
+            server.starttls()
+            server.ehlo()
         if current_app.config['SMTP_USERNAME']:
             server.login(current_app.config['SMTP_USERNAME'],
                          current_app.config['SMTP_PASSWORD'])
