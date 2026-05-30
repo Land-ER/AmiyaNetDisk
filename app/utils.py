@@ -19,10 +19,15 @@ def send_verification_code(email):
     # 生成6位数字验证码
     code = ''.join(random.choices('0123456789', k=6))
 
-    # 保存到数据库
+    # 保存到数据库（带重试）
     vc = VerificationCode(email=email, code=code)
     db.session.add(vc)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'数据库写入失败: {e}')
+        return False, '验证码发送失败，请稍后重试'
 
     # 发送邮件
     try:

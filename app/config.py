@@ -13,6 +13,11 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL',
                                          f'sqlite:///{os.path.join(_basedir, "app.db")}')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'connect_args': {'check_same_thread': False},
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 104857600))  # 100MB
 
     # SMTP 邮件配置
