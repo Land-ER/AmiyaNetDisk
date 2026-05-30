@@ -6,8 +6,12 @@ load_dotenv()
 
 class Config:
     """基础配置"""
+    # 项目根目录 (config.py 所在目录的父目录)
+    _basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///app.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL',
+                                         f'sqlite:///{os.path.join(_basedir, "app.db")}')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 104857600))  # 100MB
 
@@ -31,7 +35,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
 
     # 上传文件存储目录
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
+    UPLOAD_FOLDER = os.path.join(_basedir, 'uploads')
 
 
 class DevelopmentConfig(Config):
