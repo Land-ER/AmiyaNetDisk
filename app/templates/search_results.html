@@ -30,7 +30,7 @@
                             <polyline points="14 2 14 8 20 8"/>
                         </svg>
                     </div>
-                    <h3 class="file-title">{{ file.title }}</h3>
+                    <h3 class="file-title"><a href="{{ url_for('main.file_detail', file_id=file.id) }}" class="file-title-link">{{ file.title }}</a></h3>
                     {% if file.display_tags %}
                         <div class="file-tags">
                             {% for tag in file.display_tags %}

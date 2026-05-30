@@ -696,6 +696,96 @@ a:hover {
     color: #999;
 }
 
+/* ===== File Detail ===== */
+.detail-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px 0;
+}
+
+.detail-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    padding: 40px;
+}
+
+.detail-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.detail-icon {
+    color: #4a90d9;
+    margin-bottom: 12px;
+}
+
+.detail-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #333;
+}
+
+.detail-tags {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.detail-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid #e8ecf1;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 32px;
+}
+
+.detail-info-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8ecf1;
+    border-right: 1px solid #e8ecf1;
+}
+
+.detail-info-item:nth-child(even) {
+    border-right: none;
+}
+
+.detail-info-full {
+    grid-column: 1 / -1;
+    border-right: none;
+}
+
+.detail-label {
+    display: block;
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-size: 15px;
+    color: #333;
+}
+
+.detail-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+/* File title link on card */
+.file-title-link {
+    color: #333;
+    text-decoration: none;
+}
+
+.file-title-link:hover {
+    color: #4a90d9;
+}
+
 /* ===== Footer ===== */
 .footer {
     background: #fff;

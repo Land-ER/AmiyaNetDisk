@@ -1,8 +1,10 @@
+import csv
+import io
 import os
 import json
 import hashlib
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
@@ -336,3 +338,38 @@ def reset_user_password(user_id):
         return redirect(url_for('admin.user_list'))
 
     return render_template('admin/reset_password.html', target_user=user)
+
+
+@admin_bp.route('/export/files')
+@admin_required
+def export_files():
+    """导出所有文件列表及标签信息为 CSV"""
+    files = File.query.order_by(File.id.asc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', '标题', '原始文件名', '磁盘文件名', '文件大小(字节)',
+                     '检索标签', '展示标签', '下载次数', '上传者', '上传时间', '最后编辑'])
+
+    for f in files:
+        uploader = db.session.get(User, f.uploader_id)
+        writer.writerow([
+            f.id,
+            f.title,
+            f.original_filename,
+            f.filename_on_disk,
+            f.file_size,
+            ', '.join(load_json_tags(f.search_tags)),
+            ', '.join(load_json_tags(f.display_tags)),
+            f.download_count,
+            uploader.email if uploader else '',
+            f.created_at.strftime('%Y-%m-%d %H:%M:%S') if f.created_at else '',
+            f.updated_at.strftime('%Y-%m-%d %H:%M:%S') if f.updated_at else '',
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv; charset=utf-8-sig',
+        headers={'Content-Disposition': 'attachment; filename=amiyanetdisk_export.csv'},
+    )

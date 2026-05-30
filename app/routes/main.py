@@ -1,7 +1,7 @@
 import json
-from flask import Blueprint, render_template, request
-from app.models import File
-from app.utils import load_json_tags
+from flask import Blueprint, render_template, request, abort
+from app.models import db, File, User
+from app.utils import load_json_tags, format_file_size
 
 main_bp = Blueprint('main', __name__)
 
@@ -53,3 +53,19 @@ def search():
                            files=file_list,
                            pagination=pagination,
                            query=q)
+
+
+@main_bp.route('/file/<int:file_id>')
+def file_detail(file_id):
+    """文件详情页（公开访问）"""
+    f = db.session.get(File, file_id)
+    if not f:
+        abort(404)
+
+    uploader = db.session.get(User, f.uploader_id)
+
+    return render_template('file_detail.html',
+                           file=f,
+                           uploader=uploader,
+                           display_tags=load_json_tags(f.display_tags),
+                           search_tags=load_json_tags(f.search_tags))
