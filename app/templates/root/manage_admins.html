@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}管理员管理 - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2 class="sidebar-title">管理后台</h2>
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link">仪表盘</a>
+            <a href="{{ url_for('admin.file_list') }}" class="sidebar-link">文件管理</a>
+            <a href="{{ url_for('admin.upload') }}" class="sidebar-link">上传文件</a>
+            <a href="{{ url_for('admin.download_logs') }}" class="sidebar-link">下载日志</a>
+            <a href="{{ url_for('admin.user_list') }}" class="sidebar-link">用户管理</a>
+            {% if current_user.is_root() %}
+                <a href="{{ url_for('root.manage_admins') }}" class="sidebar-link active">管理员管理</a>
+            {% endif %}
+        </nav>
+    </aside>
+    <main class="admin-content">
+        <h1 class="page-title">管理员管理</h1>
+
+        <div class="form-card">
+            <h2>添加管理员</h2>
+            <form method="POST" action="{{ url_for('root.manage_admins') }}" class="admin-form">
+                <input type="hidden" name="action" value="promote">
+                <div class="form-group">
+                    <label for="email">用户邮箱</label>
+                    <input type="email" name="email" class="form-input" placeholder="输入用户邮箱" required>
+                </div>
+                <button type="submit" class="btn btn-primary">提升为管理员</button>
+            </form>
+        </div>
+
+        <h2>当前管理员列表</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>邮箱</th>
+                    <th>角色</th>
+                    <th>注册时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for admin in admins %}
+                <tr>
+                    <td>{{ admin.id }}</td>
+                    <td>{{ admin.email }}</td>
+                    <td>
+                        {% if admin.role == 'root' %}
+                            <span class="tag tag-root">Root</span>
+                        {% else %}
+                            <span class="tag tag-admin">Admin</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ admin.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if admin.role == 'admin' %}
+                            <form method="POST" action="{{ url_for('root.manage_admins') }}" style="display:inline" onsubmit="return confirm('确定要撤销该管理员身份吗？')">
+                                <input type="hidden" name="action" value="demote">
+                                <input type="hidden" name="user_id" value="{{ admin.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger">撤销</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-cell">暂无管理员</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</div>
+{% endblock %}

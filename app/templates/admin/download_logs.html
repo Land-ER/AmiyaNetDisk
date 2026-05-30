@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}下载日志 - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2 class="sidebar-title">管理后台</h2>
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link">仪表盘</a>
+            <a href="{{ url_for('admin.file_list') }}" class="sidebar-link">文件管理</a>
+            <a href="{{ url_for('admin.upload') }}" class="sidebar-link">上传文件</a>
+            <a href="{{ url_for('admin.download_logs') }}" class="sidebar-link active">下载日志</a>
+            <a href="{{ url_for('admin.user_list') }}" class="sidebar-link">用户管理</a>
+            {% if current_user.is_root() %}
+                <a href="{{ url_for('root.manage_admins') }}" class="sidebar-link">管理员管理</a>
+            {% endif %}
+        </nav>
+    </aside>
+    <main class="admin-content">
+        <h1 class="page-title">下载日志</h1>
+
+        <form action="{{ url_for('admin.download_logs') }}" method="GET" class="search-form-inline">
+            <input type="text" name="q" class="search-input" placeholder="搜索文件名或用户..." value="{{ query }}">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>文件名</th>
+                    <th>用户</th>
+                    <th>IP 地址</th>
+                    <th>下载时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td>{{ log.file.title if log.file else '已删除' }}</td>
+                    <td>{{ log.user.email if log.user else '未知' }}</td>
+                    <td>{{ log.ip_address or '未知' }}</td>
+                    <td>{{ log.downloaded_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-cell">暂无下载记录</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('admin.download_logs', q=query, page=pagination.prev_num) }}" class="page-link">&laquo;</a>
+            {% endif %}
+            {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+                {% if page_num %}
+                    <a href="{{ url_for('admin.download_logs', q=query, page=page_num) }}"
+                       class="page-link {% if page_num == pagination.page %}page-active{% endif %}">{{ page_num }}</a>
+                {% else %}
+                    <span class="page-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+                <a href="{{ url_for('admin.download_logs', q=query, page=pagination.next_num) }}" class="page-link">&raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

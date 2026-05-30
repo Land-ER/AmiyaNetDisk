@@ -1,0 +1,49 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class Config:
+    """基础配置"""
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///app.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 104857600))  # 100MB
+
+    # SMTP 邮件配置
+    SMTP_SERVER = os.getenv('SMTP_SERVER', 'localhost')
+    SMTP_PORT = int(os.getenv('SMTP_PORT', 25))
+    SMTP_USERNAME = os.getenv('SMTP_USERNAME', '')
+    SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
+    SMTP_FROM = os.getenv('SMTP_FROM', 'noreply@amiyanetdisk.local')
+
+    # Root 账号配置
+    ROOT_EMAIL = os.getenv('ROOT_EMAIL', 'root@amiyanetdisk.local')
+    ROOT_PASSWORD = os.getenv('ROOT_PASSWORD', 'root123456')
+
+    # 上传文件扩展名白名单
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                          'jpg', 'png', 'gif', 'zip', 'rar', '7z', 'mp4', 'txt'}
+
+    # Session 安全
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
+    # 上传文件存储目录
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
+
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+
+
+config_map = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'default': DevelopmentConfig,
+}

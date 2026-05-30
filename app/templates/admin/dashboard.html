@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}管理员仪表盘 - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2 class="sidebar-title">管理后台</h2>
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link active">仪表盘</a>
+            <a href="{{ url_for('admin.file_list') }}" class="sidebar-link">文件管理</a>
+            <a href="{{ url_for('admin.upload') }}" class="sidebar-link">上传文件</a>
+            <a href="{{ url_for('admin.download_logs') }}" class="sidebar-link">下载日志</a>
+            <a href="{{ url_for('admin.user_list') }}" class="sidebar-link">用户管理</a>
+            {% if current_user.is_root() %}
+                <a href="{{ url_for('root.manage_admins') }}" class="sidebar-link">管理员管理</a>
+            {% endif %}
+        </nav>
+    </aside>
+    <main class="admin-content">
+        <h1 class="page-title">仪表盘</h1>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_files }}</div>
+                <div class="stat-label">文件总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ total_downloads }}</div>
+                <div class="stat-label">总下载量</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ total_users }}</div>
+                <div class="stat-label">用户总数</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-section">
+                <h2>最近上传</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>标题</th>
+                            <th>大小</th>
+                            <th>上传时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in recent_files %}
+                        <tr>
+                            <td>{{ file.title }}</td>
+                            <td>{{ file.file_size | filesizeformat }}</td>
+                            <td>{{ file.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="dashboard-section">
+                <h2>下载排行 Top 10</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>标题</th>
+                            <th>下载次数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in top_files %}
+                        <tr>
+                            <td>{{ file.title }}</td>
+                            <td>{{ file.download_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

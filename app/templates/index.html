@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}搜索 - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="search-hero">
+    <div class="search-container">
+        <h1 class="search-title">AmiyaNetDisk</h1>
+        <p class="search-subtitle">公共资源共享网盘</p>
+        <form action="{{ url_for('main.search') }}" method="GET" class="search-form">
+            <input type="text" name="q" class="search-input" placeholder="搜索文件..." value="{{ query }}" autofocus>
+            <button type="submit" class="btn btn-primary search-btn">搜索</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

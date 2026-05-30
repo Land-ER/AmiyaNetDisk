@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}上传文件 - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2 class="sidebar-title">管理后台</h2>
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link">仪表盘</a>
+            <a href="{{ url_for('admin.file_list') }}" class="sidebar-link">文件管理</a>
+            <a href="{{ url_for('admin.upload') }}" class="sidebar-link active">上传文件</a>
+            <a href="{{ url_for('admin.download_logs') }}" class="sidebar-link">下载日志</a>
+            <a href="{{ url_for('admin.user_list') }}" class="sidebar-link">用户管理</a>
+            {% if current_user.is_root() %}
+                <a href="{{ url_for('root.manage_admins') }}" class="sidebar-link">管理员管理</a>
+            {% endif %}
+        </nav>
+    </aside>
+    <main class="admin-content">
+        <h1 class="page-title">上传文件</h1>
+        <div class="form-card">
+            <form method="POST" action="{{ url_for('admin.upload') }}" enctype="multipart/form-data" class="admin-form">
+                {{ form.hidden_tag() }}
+                <div class="form-group">
+                    <label for="file">选择文件</label>
+                    {{ form.file(class="form-input", id="file") }}
+                    {% for error in form.file.errors %}
+                        <span class="form-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                <div class="form-group">
+                    <label for="title">文件标题</label>
+                    {{ form.title(class="form-input", placeholder="输入文件显示标题", id="title") }}
+                    {% for error in form.title.errors %}
+                        <span class="form-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                <div class="form-group">
+                    <label for="search_tags">检索标签（逗号分隔）</label>
+                    {{ form.search_tags(class="form-input", placeholder="例如: 教程,文档,PDF", id="search_tags") }}
+                </div>
+                <div class="form-group">
+                    <label for="display_tags">展示标签（逗号分隔）</label>
+                    {{ form.display_tags(class="form-input", placeholder="例如: 热门,精选", id="display_tags") }}
+                </div>
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}
