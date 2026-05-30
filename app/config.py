@@ -16,10 +16,10 @@ class Config:
     SMTP_PORT = int(os.getenv('SMTP_PORT', 25))
     SMTP_USERNAME = os.getenv('SMTP_USERNAME', '')
     SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
-    SMTP_FROM = os.getenv('SMTP_FROM', 'noreply@amiyanetdisk.local')
+    SMTP_FROM = os.getenv('SMTP_FROM', 'noreply@example.com')
 
     # Root 账号配置
-    ROOT_EMAIL = os.getenv('ROOT_EMAIL', 'root@amiyanetdisk.local')
+    ROOT_EMAIL = os.getenv('ROOT_EMAIL', 'admin@example.com')
     ROOT_PASSWORD = os.getenv('ROOT_PASSWORD', 'root123456')
 
     # 上传文件扩展名白名单

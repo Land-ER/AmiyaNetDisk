@@ -4,13 +4,13 @@ from wtforms.validators import DataRequired, Email, Length, Optional
 
 
 class LoginForm(FlaskForm):
-    email = StringField('邮箱', validators=[DataRequired(), Email()])
+    email = StringField('邮箱', validators=[DataRequired(), Email(check_deliverability=False)])
     password = PasswordField('密码', validators=[DataRequired(), Length(min=6, max=128)])
     submit = SubmitField('登录')
 
 
 class RegisterForm(FlaskForm):
-    email = StringField('邮箱', validators=[DataRequired(), Email()])
+    email = StringField('邮箱', validators=[DataRequired(), Email(check_deliverability=False)])
     password = PasswordField('密码', validators=[DataRequired(), Length(min=6, max=128)])
     code = StringField('验证码', validators=[DataRequired(), Length(min=6, max=6)])
     submit = SubmitField('注册')

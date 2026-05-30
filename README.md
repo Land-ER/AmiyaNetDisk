@@ -113,8 +113,8 @@ cp .env.example .env
 | `SMTP_PORT` | SMTP 端口 | `25` |
 | `SMTP_USERNAME` | SMTP 用户名 | （空） |
 | `SMTP_PASSWORD` | SMTP 密码 | （空） |
-| `SMTP_FROM` | 发件人地址 | `noreply@amiyanetdisk.local` |
-| `ROOT_EMAIL` | 超级管理员邮箱 | `root@amiyanetdisk.local` |
+| `SMTP_FROM` | 发件人地址 | `noreply@example.com` |
+| `ROOT_EMAIL` | 超级管理员邮箱 | `admin@example.com` |
 | `ROOT_PASSWORD` | 超级管理员密码 | `root123456` |
 | `MAX_CONTENT_LENGTH` | 上传文件大小限制 | `104857600`（100MB） |
 
