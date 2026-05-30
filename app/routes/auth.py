@@ -98,3 +98,39 @@ def send_code():
     email = data['email'].strip()
     success, message = send_verification_code(email)
     return jsonify({'success': success, 'message': message})
+
+
+@auth_bp.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    """找回密码：通过邮箱验证码重置密码"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.search'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        code = request.form.get('code', '').strip()
+        password = request.form.get('password', '')  # 前端已做 SHA-256
+
+        if not email or not code or not password:
+            flash('请填写所有字段', 'danger')
+            return render_template('reset_password.html', email=email)
+
+        # 验证邮箱存在
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash('该邮箱未注册', 'danger')
+            return render_template('reset_password.html', email=email)
+
+        # 验证验证码
+        if not verify_code(email, code):
+            flash('验证码错误或已过期', 'danger')
+            return render_template('reset_password.html', email=email)
+
+        # 更新密码
+        user.password_hash = generate_password_hash(password)
+        db.session.commit()
+
+        flash('密码重置成功，请使用新密码登录', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('reset_password.html')

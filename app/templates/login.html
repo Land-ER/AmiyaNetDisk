@@ -21,6 +21,9 @@
                 {% endfor %}
             </div>
             {{ form.submit(class="btn btn-primary btn-full") }}
+            <div class="form-links">
+                <a href="{{ url_for('auth.reset_password') }}" class="form-link">忘记密码？</a>
+            </div>
         </form>
         <p class="auth-link">
             还没有账号？<a href="{{ url_for('auth.register') }}">立即注册</a>

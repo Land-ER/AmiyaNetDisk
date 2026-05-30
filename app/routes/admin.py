@@ -4,6 +4,7 @@ import hashlib
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user
+from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from app.models import db, File, DownloadLog, OperationLog, User
 from app.forms import UploadForm, FileEditForm
@@ -292,3 +293,39 @@ def unban_user(user_id):
 
     flash(f'用户 {user.email} 已启用', 'success')
     return redirect(url_for('admin.user_list'))
+
+
+@admin_bp.route('/user/<int:user_id>/reset_password', methods=['GET', 'POST'])
+@admin_required
+def reset_user_password(user_id):
+    """管理员重置用户密码"""
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('用户不存在', 'danger')
+        return redirect(url_for('admin.user_list'))
+
+    if user.is_root():
+        flash('不能重置 root 用户的密码', 'danger')
+        return redirect(url_for('admin.user_list'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('password', '')
+        if not new_password or len(new_password) < 6:
+            flash('密码长度不能少于6位', 'danger')
+            return render_template('admin/reset_password.html', target_user=user)
+
+        user.password_hash = generate_password_hash(new_password)
+
+        log = OperationLog(
+            admin_id=current_user.id,
+            action='reset_password',
+            target_id=user.id,
+            detail=json.dumps({'email': user.email}),
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        flash(f'用户 {user.email} 的密码已重置', 'success')
+        return redirect(url_for('admin.user_list'))
+
+    return render_template('admin/reset_password.html', target_user=user)

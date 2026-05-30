@@ -244,6 +244,21 @@ a:hover {
     color: #888;
 }
 
+.form-links {
+    text-align: right;
+    margin-top: 8px;
+}
+
+.form-link {
+    font-size: 13px;
+    color: #4a90d9;
+}
+
+.form-link:hover {
+    color: #357abd;
+    text-decoration: underline;
+}
+
 /* ===== Forms ===== */
 .form-group {
     margin-bottom: 16px;

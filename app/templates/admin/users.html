@@ -46,6 +46,7 @@
                     <td>{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>
                         {% if not u.is_root() %}
+                            <a href="{{ url_for('admin.reset_user_password', user_id=u.id) }}" class="btn btn-sm btn-outline">重置密码</a>
                             {% if u.is_active %}
                                 <form method="POST" action="{{ url_for('admin.ban_user', user_id=u.id) }}" style="display:inline" onsubmit="return confirm('确定要禁用该用户吗？')">
                                     <button type="submit" class="btn btn-sm btn-danger">禁用</button>
