@@ -96,18 +96,21 @@ document.getElementById('registerForm')?.addEventListener('submit', function(e) 
     if (!pwd || pwd.dataset.hashed) return;
     e.preventDefault();
     var form = this;
+    function submitForm() {
+        HTMLFormElement.prototype.submit.call(form);
+    }
     if (typeof hashPassword !== 'function') {
         pwd.dataset.hashed = 'true';
-        form.submit();
+        submitForm();
         return;
     }
     hashPassword(pwd.value).then(function(hash) {
         pwd.value = hash;
         pwd.dataset.hashed = 'true';
-        form.submit();
+        submitForm();
     }).catch(function() {
         pwd.dataset.hashed = 'true';
-        form.submit();
+        submitForm();
     });
 });
 </script>

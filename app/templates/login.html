@@ -39,19 +39,22 @@ document.querySelector('.auth-form')?.addEventListener('submit', function(e) {
     if (!pwd || pwd.dataset.hashed) return;
     e.preventDefault();
     var form = this;
-    // hashPassword 可能未定义（main.js 未加载），兜底直接提交
+    // WTForms 的 submit 按钮会覆盖 form.submit，需要通过原型调用
+    function submitForm() {
+        HTMLFormElement.prototype.submit.call(form);
+    }
     if (typeof hashPassword !== 'function') {
         pwd.dataset.hashed = 'true';
-        form.submit();
+        submitForm();
         return;
     }
     hashPassword(pwd.value).then(function(hash) {
         pwd.value = hash;
         pwd.dataset.hashed = 'true';
-        form.submit();
+        submitForm();
     }).catch(function() {
         pwd.dataset.hashed = 'true';
-        form.submit();
+        submitForm();
     });
 });
 </script>
