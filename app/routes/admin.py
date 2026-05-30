@@ -180,14 +180,21 @@ def delete_file(file_id):
     upload_folder = current_app.config['UPLOAD_FOLDER']
     file_path = os.path.join(upload_folder, filename_on_disk)
 
-    # 删除数据库记录
+    # 检查是否有其他文件引用同一磁盘文件
+    other_refs = File.query.filter(
+        File.id != file_record.id,
+        File.filename_on_disk == filename_on_disk
+    ).count()
+    is_last_ref = other_refs == 0
+
+    # 先删除关联的下载日志，避免 File 删除时 autoflush 触发 NOT NULL 冲突
+    DownloadLog.query.filter_by(file_id=file_record.id).delete()
+
+    # 删除文件记录
     db.session.delete(file_record)
 
-    # 检查文件是否还被其他记录引用
-    remaining = File.query.filter_by(filename_on_disk=filename_on_disk).count()
-    if remaining == 1:  # 只有当前这条（已删除，但计数可能为0）
-        pass  # 已删除，检查物理文件
-    if remaining <= 1 and os.path.exists(file_path):
+    # 无其他引用时物理删除文件
+    if is_last_ref and os.path.exists(file_path):
         os.remove(file_path)
 
     # 操作日志
