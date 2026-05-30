@@ -19,7 +19,7 @@ class Config:
     SMTP_FROM = os.getenv('SMTP_FROM', 'noreply@example.com')
 
     # Root 账号配置
-    ROOT_EMAIL = os.getenv('ROOT_EMAIL', 'admin@example.com')
+    ROOT_EMAIL = os.getenv('ROOT_EMAIL', 'root@example.com')
     ROOT_PASSWORD = os.getenv('ROOT_PASSWORD', 'root123456')
 
     # 上传文件扩展名白名单
