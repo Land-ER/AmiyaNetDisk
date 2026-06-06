@@ -1,9 +1,16 @@
+from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import db, User
 from app.forms import LoginForm, RegisterForm
-from app.utils import send_verification_code, verify_code
+from app.utils import send_verification_code, verify_code, is_safe_redirect_url
+from app.campus import (
+    campus_verification_enabled,
+    issue_campus_challenge,
+    verify_campus_proofs,
+    campus_session_verified,
+)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -12,7 +19,7 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     """用户注册"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.search'))
+        return redirect(url_for('main.index'))
 
     form = RegisterForm()
     if form.validate_on_submit():
@@ -23,6 +30,10 @@ def register():
         # 验证邮箱唯一性
         if User.query.filter_by(email=email).first():
             flash('该邮箱已注册', 'danger')
+            return render_template('register.html', form=form)
+
+        if campus_verification_enabled() and not campus_session_verified():
+            flash('请先完成校园网验证', 'danger')
             return render_template('register.html', form=form)
 
         # 验证验证码
@@ -36,6 +47,8 @@ def register():
             password_hash=generate_password_hash(password),
             role='user',
             is_active=True,
+            campus_verified_at=datetime.utcnow() if campus_verification_enabled() else None,
+            campus_verify_method='campus_image' if campus_verification_enabled() else None,
         )
         db.session.add(user)
         db.session.commit()
@@ -43,7 +56,7 @@ def register():
         # 自动登录
         login_user(user)
         flash('注册成功，欢迎使用 AmiyaNetDisk！', 'success')
-        return redirect(url_for('main.search'))
+        return redirect(url_for('main.index'))
 
     return render_template('register.html', form=form)
 
@@ -52,7 +65,7 @@ def register():
 def login():
     """用户登录"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.search'))
+        return redirect(url_for('main.index'))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -72,7 +85,9 @@ def login():
             login_user(user)
             next_page = request.args.get('next')
             flash('登录成功', 'success')
-            return redirect(next_page or url_for('main.search'))
+            if next_page and is_safe_redirect_url(next_page):
+                return redirect(next_page)
+            return redirect(url_for('main.index'))
         else:
             flash('密码错误', 'danger')
 
@@ -85,7 +100,7 @@ def logout():
     """用户登出"""
     logout_user()
     flash('已退出登录', 'info')
-    return redirect(url_for('main.search'))
+    return redirect(url_for('main.index'))
 
 
 @auth_bp.route('/send_code', methods=['POST'])
@@ -96,15 +111,40 @@ def send_code():
         return jsonify({'success': False, 'message': '请提供邮箱地址'}), 400
 
     email = data['email'].strip()
+    purpose = data.get('purpose', 'register')
+    if (purpose == 'register' and campus_verification_enabled() and
+            not campus_session_verified()):
+        return jsonify({'success': False, 'message': '请先完成校园网验证'}), 403
+
     success, message = send_verification_code(email)
     return jsonify({'success': success, 'message': message})
+
+
+@auth_bp.route('/campus_verify/config')
+def campus_verify_config():
+    """获取校园网验证挑战"""
+    if not campus_verification_enabled():
+        return jsonify({'enabled': False, 'images': [], 'nonce': None})
+    challenge = issue_campus_challenge()
+    return jsonify({'enabled': True, **challenge})
+
+
+@auth_bp.route('/campus_verify/check', methods=['POST'])
+def campus_verify_check():
+    """校验浏览器提交的校园网图片加载证明"""
+    if not campus_verification_enabled():
+        return jsonify({'success': True, 'message': '校园网验证未启用'})
+    data = request.get_json() or {}
+    success, message = verify_campus_proofs(data.get('proofs', []))
+    status = 200 if success else 400
+    return jsonify({'success': success, 'message': message}), status
 
 
 @auth_bp.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
     """找回密码：通过邮箱验证码重置密码"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.search'))
+        return redirect(url_for('main.index'))
 
     if request.method == 'POST':
         email = request.form.get('email', '').strip()

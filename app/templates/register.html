@@ -13,6 +13,15 @@
                     <span class="form-error">{{ error }}</span>
                 {% endfor %}
             </div>
+            {% if config.CAMPUS_VERIFY_ENABLED %}
+            <div class="form-group campus-verify-panel">
+                <label>校园网验证</label>
+                <div class="campus-verify-row">
+                    <button type="button" class="btn btn-outline" id="campusVerifyBtn" onclick="runCampusVerify()">开始验证</button>
+                    <span id="campusVerifyStatus" class="muted">连接校园网或 VPN 后验证</span>
+                </div>
+            </div>
+            {% endif %}
             <div class="form-group">
                 <label for="code">验证码</label>
                 <div class="code-group">
@@ -43,6 +52,81 @@
 <script>
 let codeTimer = null;
 let codeCountdown = 0;
+let campusVerified = {{ 'true' if not config.CAMPUS_VERIFY_ENABLED else 'false' }};
+
+async function sha256Hex(text) {
+    const data = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function loadCampusImage(item, nonce) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        let done = false;
+        const timer = setTimeout(() => finish(null), 5000);
+        function finish(value) {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            img.onload = null;
+            img.onerror = null;
+            resolve(value);
+        }
+        img.onload = async () => {
+            if (!img.naturalWidth || !img.naturalHeight) {
+                finish(null);
+                return;
+            }
+            const payload = `${nonce}|${item.url}|${item.md5}|${img.naturalWidth}x${img.naturalHeight}`;
+            finish({
+                url: item.url,
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                proof: await sha256Hex(payload)
+            });
+        };
+        img.onerror = () => finish(null);
+        img.src = item.url;
+    });
+}
+
+async function runCampusVerify() {
+    const btn = document.getElementById('campusVerifyBtn');
+    const status = document.getElementById('campusVerifyStatus');
+    if (!btn || !status) return;
+    btn.disabled = true;
+    status.textContent = '验证中...';
+    try {
+        const cfgRes = await fetch('{{ url_for("auth.campus_verify_config") }}', {cache: 'no-cache'});
+        const cfg = await cfgRes.json();
+        if (!cfg.enabled) {
+            campusVerified = true;
+            status.textContent = '无需验证';
+            return;
+        }
+        const proofs = (await Promise.all((cfg.images || []).map(item => loadCampusImage(item, cfg.nonce)))).filter(Boolean);
+        const checkRes = await fetch('{{ url_for("auth.campus_verify_check") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({proofs: proofs})
+        });
+        const data = await checkRes.json();
+        if (!data.success) {
+            throw new Error(data.message || '校园网验证失败');
+        }
+        campusVerified = true;
+        status.textContent = '已通过';
+        btn.textContent = '验证通过';
+    } catch (error) {
+        campusVerified = false;
+        status.textContent = error.message || '验证失败';
+        btn.disabled = false;
+    }
+}
 
 function sendCode() {
     const email = document.getElementById('email').value;
@@ -54,14 +138,21 @@ function sendCode() {
     }
 
     if (codeCountdown > 0) return;
+    if (!campusVerified) {
+        alert('请先完成校园网验证');
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = '发送中...';
 
     fetch('{{ url_for("auth.send_code") }}', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email: email})
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({email: email, purpose: 'register'})
     })
     .then(res => res.json())
     .then(data => {

@@ -6,6 +6,11 @@
     <div class="search-bar">
         <form action="{{ url_for('main.search') }}" method="GET" class="search-form-inline">
             <input type="text" name="q" class="search-input" placeholder="搜索文件..." value="{{ query }}">
+            <select name="mode" class="form-input search-mode">
+                <option value="hybrid" {% if mode == 'hybrid' %}selected{% endif %}>混合搜索</option>
+                <option value="keyword" {% if mode == 'keyword' %}selected{% endif %}>关键词</option>
+                <option value="semantic" {% if mode == 'semantic' %}selected{% endif %} {% if not embedding_enabled %}disabled{% endif %}>语义</option>
+            </select>
             <button type="submit" class="btn btn-primary">搜索</button>
         </form>
     </div>
@@ -21,34 +26,36 @@
 
     <!-- 文件列表 -->
     {% if files %}
-        <div class="file-grid">
+        <div class="file-list-panel">
             {% for file in files %}
-                <div class="file-card">
-                    <div class="file-icon">
-                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </svg>
-                    </div>
-                    <h3 class="file-title"><a href="{{ url_for('main.file_detail', file_id=file.id) }}" class="file-title-link">{{ file.title }}</a></h3>
+                <article class="file-row">
+                    <div class="file-row-main">
+                    <h3 class="file-row-title"><a href="{{ url_for('main.file_detail', file_id=file.id) }}">{{ file.title }}</a></h3>
+                    {% if file.folder_path %}
+                        <a class="file-folder-path" href="{{ url_for('main.folder_browser', folder_id=file.folder.id) }}">{{ file.folder_path }}</a>
+                    {% endif %}
                     {% if file.display_tags %}
-                        <div class="file-tags">
+                        <div class="tag-list-inline">
                             {% for tag in file.display_tags %}
                                 <span class="tag">{{ tag }}</span>
                             {% endfor %}
                         </div>
                     {% endif %}
-                    <div class="file-meta">
+                    <div class="file-row-meta">
                         <span class="file-size">{{ file.file_size | filesizeformat }}</span>
                         <span class="file-date">{{ file.created_at.strftime('%Y-%m-%d') }}</span>
                         <span class="file-downloads">{{ file.download_count }} 次下载</span>
+                        {% if file.semantic_score %}
+                            <span>语义相关 {{ '%.2f'|format(file.semantic_score) }}</span>
+                        {% endif %}
+                    </div>
                     </div>
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('file.download', file_id=file.id) }}" class="btn btn-primary btn-full">下载</a>
+                        <a href="{{ url_for('file.download', file_id=file.id) }}" class="btn btn-sm btn-primary">下载</a>
                     {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-full">登录后下载</a>
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline">登录后下载</a>
                     {% endif %}
-                </div>
+                </article>
             {% endfor %}
         </div>
 
@@ -56,18 +63,18 @@
         {% if pagination.pages > 1 %}
             <div class="pagination">
                 {% if pagination.has_prev %}
-                    <a href="{{ url_for('main.search', q=query, page=pagination.prev_num) }}" class="page-link">&laquo; 上一页</a>
+                    <a href="{{ url_for('main.search', q=query, mode=mode, page=pagination.prev_num) }}" class="page-link">&laquo; 上一页</a>
                 {% endif %}
                 {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
                     {% if page_num %}
-                        <a href="{{ url_for('main.search', q=query, page=page_num) }}"
+                        <a href="{{ url_for('main.search', q=query, mode=mode, page=page_num) }}"
                            class="page-link {% if page_num == pagination.page %}page-active{% endif %}">{{ page_num }}</a>
                     {% else %}
                         <span class="page-ellipsis">...</span>
                     {% endif %}
                 {% endfor %}
                 {% if pagination.has_next %}
-                    <a href="{{ url_for('main.search', q=query, page=pagination.next_num) }}" class="page-link">下一页 &raquo;</a>
+                    <a href="{{ url_for('main.search', q=query, mode=mode, page=pagination.next_num) }}" class="page-link">下一页 &raquo;</a>
                 {% endif %}
             </div>
         {% endif %}

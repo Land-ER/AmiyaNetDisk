@@ -20,12 +20,13 @@
 
 | 模块 | 功能 |
 |------|------|
-| 文件搜索 | 公开搜索，多关键词模糊匹配，分页浏览，标签筛选 |
+| 文件搜索 | 公开搜索，多关键词模糊匹配，分页浏览，标签筛选，可选 embedding 语义搜索 |
+| 文件夹分类 | 管理员创建多级文件夹，文件按树状目录浏览与归类 |
 | 用户认证 | 邮箱注册（验证码）、登录、Session 管理、前端 SHA-256 密码传输 |
 | 文件下载 | 需登录，下载日志记录，下载量统计 |
 | 角色权限 | `user` -> `admin` -> `root` 三级角色，装饰器隔离权限 |
-| 管理后台 | 仪表盘概览、文件管理、标签编辑、下载日志、用户禁用/启用 |
-| 安全设计 | 密码 bcrypt 存储、CSRF 保护、文件后缀白名单、HTTPOnly Session |
+| 管理后台 | 仪表盘概览、文件/文件夹管理、标签编辑、下载日志、用户禁用/启用 |
+| 安全设计 | 密码 bcrypt 存储、CSRF 保护、文件后缀白名单、HTTPOnly Session、可选校园网注册验证 |
 | Root 管理 | 预设超级管理员，可任命/撤销普通管理员 |
 | 文件去重 | SHA-256 哈希命名，相同文件仅存一份（秒传） |
 | 容器化 | Docker + docker-compose 一键部署 |
@@ -117,6 +118,16 @@ cp .env.example .env
 | `ROOT_EMAIL` | 超级管理员邮箱 | `root@example.com` |
 | `ROOT_PASSWORD` | 超级管理员密码 | `root123456` |
 | `MAX_CONTENT_LENGTH` | 上传文件大小限制 | `104857600`（100MB） |
+| `EMBEDDING_ENABLED` | 是否启用 embedding 语义搜索 | `false` |
+| `EMBEDDING_MODEL` | 语义搜索模型名称 | `BAAI/bge-small-zh-v1.5` |
+| `EMBEDDING_TOP_K` | 语义候选数量 | `50` |
+| `CAMPUS_VERIFY_ENABLED` | 是否启用注册前校园网验证 | `false` |
+| `CAMPUS_VERIFY_MIN_SUCCESS` | 校园网验证需成功加载的图片数 | `1` |
+| `CAMPUS_VERIFY_TTL_SECONDS` | 校园网验证会话有效期 | `600` |
+
+> **关于 embedding 搜索**：默认安装保持轻量，语义搜索关闭。若要启用，请额外安装 `sentence-transformers`，再设置 `EMBEDDING_ENABLED=true`。首次启用模型会下载权重，建议在服务器上预热或使用持久化缓存。
+
+> **关于校园网验证**：该功能验证注册时的网络环境是否能访问配置中的 HIT 图片资源，不等同于统一身份认证或学生身份认证。如需强身份认证，应接入学校官方 CAS/SSO。
 
 > **关于 SMTP 配置**：注册和找回密码功能需要 SMTP 发送验证码邮件。开发时可使用 [MailHog](https://github.com/mailhog/MailHog) 等本地测试工具，设置 `SMTP_SERVER=localhost`, `SMTP_PORT=1025` 即可拦截邮件查看。
 
@@ -126,6 +137,12 @@ cp .env.example .env
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+如需运行测试，请安装开发依赖：
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ### 4. 启动应用
@@ -141,6 +158,14 @@ flask run --host=0.0.0.0 --port=5000
 访问 `http://localhost:5000`
 
 > 首次启动会自动创建 SQLite 数据库文件和预设的 root 超级管理员账号。
+
+### 5. 运行测试
+
+```bash
+python -m pytest -q
+```
+
+测试套件会使用临时数据库，覆盖文件夹树、上传归类、搜索、CSRF、开放重定向和校园网注册验证 gate。
 
 ---
 
@@ -210,6 +235,51 @@ docker run -d \
 | 方法 | 路径 | 功能 |
 |------|------|------|
 | GET/POST | `/root/admins` | 管理员任命/撤销 |
+
+---
+
+## 机器人 API
+
+管理员可在后台 `API Tokens` 页面创建机器人 Token。Token 明文只在创建后显示一次，数据库仅保存哈希。
+
+请求时使用 Bearer Token：
+
+```http
+Authorization: Bearer and_xxx
+```
+
+当前开放接口：
+
+| 方法 | 路径 | Scope | 功能 |
+|------|------|-------|------|
+| GET | `/api/v1/folders/tree` | `folders:read` | 读取文件夹树 |
+| POST | `/api/v1/folders` | `folders:write` | 创建文件夹 |
+| GET | `/api/v1/search?q=关键词` | `search:read` | 搜索文件 |
+| GET | `/api/v1/files/<id>` | `files:read` | 读取文件详情与下载路径 |
+| GET | `/api/v1/files/<id>/download` | `files:read` | 下载文件并记录下载日志 |
+| POST | `/api/v1/files` | `files:upload` | 上传文件 |
+
+创建文件夹 JSON 示例：
+
+```json
+{
+  "parent_id": 1,
+  "name": "数学学院",
+  "description": "课程资料"
+}
+```
+
+上传文件使用 `multipart/form-data`：
+
+```text
+file=@algebra.txt
+title=高等代数期末复习资料
+folder_id=2
+search_tags=数学,代数
+display_tags=数学
+```
+
+建议仅给机器人授予必要 scope；停用 Token 后会立即拒绝后续请求。删除类 API 暂未开放。
 
 ---
 
