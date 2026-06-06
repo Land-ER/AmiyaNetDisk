@@ -79,8 +79,12 @@ def compute_file_hash(file_data):
 def allowed_file(filename):
     """检查文件扩展名是否在白名单中"""
     from app.config import Config
+    from flask import has_app_context
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-    return ext in Config.ALLOWED_EXTENSIONS
+    allowed_extensions = Config.ALLOWED_EXTENSIONS
+    if has_app_context():
+        allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', allowed_extensions)
+    return ext in allowed_extensions
 
 
 def get_file_extension(filename):

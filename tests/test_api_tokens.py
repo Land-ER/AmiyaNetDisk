@@ -56,6 +56,56 @@ def test_api_scope_enforcement_and_read_endpoints(client, app, db_session, root_
         assert token_record.last_used_at is not None
 
 
+def test_api_search_limit_is_clamped(client, app, db_session, root_user):
+    with app.app_context():
+        _, plain = create_api_token('search-limit', ['search:read'], root_user.id)
+        root = get_root_folder()
+        for index in range(30):
+            db_session.add(File(
+                title=f'limit item {index}',
+                filename_on_disk=f'limit-{index}.txt',
+                original_filename=f'limit-{index}.txt',
+                file_size=1,
+                folder_id=root.id,
+                uploader_id=root_user.id,
+            ))
+        db_session.commit()
+
+    response = client.get('/api/v1/search?q=limit&limit=-1',
+                          headers={'Authorization': f'Bearer {plain}'})
+    assert response.status_code == 200
+    assert len(response.json['files']) == 1
+
+    response = client.get('/api/v1/search?q=limit&limit=500',
+                          headers={'Authorization': f'Bearer {plain}'})
+    assert response.status_code == 200
+    assert len(response.json['files']) == 30
+
+
+def test_api_token_owner_must_remain_active_admin(client, app, db_session):
+    from werkzeug.security import generate_password_hash
+    from app.models import User
+
+    with app.app_context():
+        admin = User(
+            email='token-owner@example.com',
+            password_hash=generate_password_hash('password'),
+            role='admin',
+            is_active=True,
+        )
+        db_session.add(admin)
+        db_session.commit()
+        _, plain = create_api_token('owned-token', ['folders:read'], admin.id)
+        db_session.commit()
+        admin.is_active = False
+        db_session.commit()
+
+    response = client.get('/api/v1/folders/tree',
+                          headers={'Authorization': f'Bearer {plain}'})
+    assert response.status_code == 401
+    assert response.json['error'] == 'invalid_token_owner'
+
+
 def test_admin_can_create_and_disable_api_token(client, app, root_user):
     login_as(client, root_user)
 
@@ -87,6 +137,23 @@ def test_admin_can_create_and_disable_api_token(client, app, root_user):
 
     with app.app_context():
         assert ApiToken.query.get(token_id).is_active is False
+
+
+def test_admin_rejects_unknown_api_token_scopes(client, app, root_user):
+    login_as(client, root_user)
+
+    page = client.get('/admin/api_tokens')
+    token = csrf_from_response(page)
+    response = client.post('/admin/api_token/create', data={
+        'csrf_token': token,
+        'name': '伪造权限',
+        'scopes': ['unknown:scope'],
+    }, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert '请至少选择一个权限范围'.encode('utf-8') in response.data
+    with app.app_context():
+        assert ApiToken.query.filter_by(name='伪造权限').first() is None
 
 
 def test_api_write_scopes_create_folder_and_upload_file(client, app, db_session, root_user):
@@ -142,6 +209,24 @@ def test_api_write_scopes_create_folder_and_upload_file(client, app, db_session,
                         headers={'Authorization': f'Bearer {write_plain}'})
     assert search.status_code == 200
     assert search.json['files'][0]['id'] == file_id
+
+
+def test_api_upload_uses_runtime_allowed_extensions(client, app, db_session, root_user):
+    with app.app_context():
+        _, plain = create_api_token('runtime-upload-policy', ['files:upload'], root_user.id)
+        root_id = get_root_folder().id
+        db_session.commit()
+        app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
+
+    response = client.post('/api/v1/files', data={
+        'title': '不允许的文本',
+        'folder_id': str(root_id),
+        'file': (BytesIO(b'text'), 'note.txt'),
+    }, content_type='multipart/form-data',
+        headers={'Authorization': f'Bearer {plain}'})
+
+    assert response.status_code == 400
+    assert response.json['error'] == 'unsupported_file_type'
 
 
 def test_api_download_records_logs_and_disabled_token_is_rejected(client, app, db_session, root_user):

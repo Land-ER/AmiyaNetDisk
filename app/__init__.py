@@ -17,13 +17,15 @@ login_manager.login_message_category = 'warning'
 csrf = CSRFProtect()
 
 
-def create_app(config_name=None):
+def create_app(config_name=None, config_overrides=None):
     """应用工厂函数"""
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'default')
 
     app = Flask(__name__)
     app.config.from_object(config_map.get(config_name, config_map['default']))
+    if config_overrides:
+        app.config.update(config_overrides)
 
     # 初始化扩展
     db.init_app(app)

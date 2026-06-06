@@ -2,6 +2,7 @@ from io import BytesIO
 
 from app.folders import get_root_folder
 from app.models import File, Folder
+from app.utils import compute_file_hash
 from conftest import csrf_from_response, login_as
 
 
@@ -15,8 +16,17 @@ def test_root_folder_and_public_tree(client, app):
     assert response.json['tree'][0]['path'] == '/'
 
 
-def test_admin_creates_folder_and_uploads_file(client, app, root_user):
+def test_admin_creates_folder_and_uploads_file(client, app, root_user, monkeypatch):
     login_as(client, root_user)
+    file_data = b'linear algebra notes'
+    hash_calls = []
+
+    def fake_compute_file_hash(data):
+        hash_calls.append(data)
+        return compute_file_hash(data)
+
+    from app.routes import admin as admin_routes
+    monkeypatch.setattr(admin_routes, 'compute_file_hash', fake_compute_file_hash)
 
     page = client.get('/admin/folders')
     token = csrf_from_response(page)
@@ -42,7 +52,7 @@ def test_admin_creates_folder_and_uploads_file(client, app, root_user):
         'folder_id': str(folder_id),
         'search_tags': '数学, 代数, 期末',
         'display_tags': '数学, 期末',
-        'file': (BytesIO(b'linear algebra notes'), 'algebra.txt'),
+        'file': (BytesIO(file_data), 'algebra.txt'),
     }, content_type='multipart/form-data')
     assert response.status_code == 302
 
@@ -50,6 +60,8 @@ def test_admin_creates_folder_and_uploads_file(client, app, root_user):
         file_record = File.query.filter_by(title='高等代数期末复习资料').first()
         assert file_record is not None
         assert file_record.folder_id == folder_id
+        assert file_record.filename_on_disk == f'{compute_file_hash(file_data)}.txt'
+    assert hash_calls == [file_data]
 
     folder_page = client.get(f'/folder/{folder_id}')
     assert folder_page.status_code == 200

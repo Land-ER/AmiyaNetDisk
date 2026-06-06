@@ -63,8 +63,8 @@
                             {{ '全部资料' if folder.parent_id is none else folder.path }}
                         </a>
                     </td>
-                    <td>{{ folder.files.count() }}</td>
-                    <td>{{ folder.children.count() }}</td>
+                    <td>{{ file_counts.get(folder.id, 0) }}</td>
+                    <td>{{ child_counts.get(folder.id, 0) }}</td>
                     <td class="action-cell folder-actions">
                         {% if folder.parent_id is not none %}
                         <form method="POST" action="{{ url_for('admin.rename_folder_route', folder_id=folder.id) }}">

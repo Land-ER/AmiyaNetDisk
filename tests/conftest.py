@@ -16,12 +16,15 @@ def app(tmp_path, monkeypatch):
 
     from app import create_app
 
-    app = create_app()
-    app.config.update(
-        TESTING=True,
-        WTF_CSRF_ENABLED=True,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-    )
+    app = create_app(config_overrides={
+        'TESTING': True,
+        'WTF_CSRF_ENABLED': True,
+        'SQLALCHEMY_DATABASE_URI': f'sqlite:///{tmp_path / "test.db"}',
+        'UPLOAD_FOLDER': str(tmp_path / 'uploads'),
+        'SECRET_KEY': 'test-secret',
+        'EMBEDDING_ENABLED': False,
+        'CAMPUS_VERIFY_ENABLED': False,
+    })
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     return app
 

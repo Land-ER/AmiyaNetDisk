@@ -70,7 +70,13 @@ def test_campus_image_url_normalization_rejects_untrusted_inputs(campus_app):
     with campus_app.app_context():
         assert normalize_campus_image_url('http://zb.hit.edu.cn/images/help/x.png') is None
         assert normalize_campus_image_url('https://evil.example/images/help/x.png') is None
+        assert normalize_campus_image_url('https://user@zb.hit.edu.cn/images/help/x.png') is None
+        assert normalize_campus_image_url('https://zb.hit.edu.cn:443/images/help/x.png') is None
         assert normalize_campus_image_url('https://zb.hit.edu.cn/not-allowed/x.png') is None
+        assert (
+            normalize_campus_image_url('https://zb.hit.edu.cn/images/help/x.png?cache=1#frag') ==
+            'https://zb.hit.edu.cn/images/help/x.png'
+        )
 
 
 def csrf_from_meta(data):

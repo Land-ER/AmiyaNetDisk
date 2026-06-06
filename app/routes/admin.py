@@ -2,7 +2,6 @@ import csv
 import io
 import os
 import json
-import hashlib
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response, jsonify
 from flask_login import current_user
@@ -10,7 +9,14 @@ from werkzeug.security import generate_password_hash
 from app.models import db, File, DownloadLog, OperationLog, User, Folder, ApiToken
 from app.forms import UploadForm, FileEditForm
 from app.decorators import admin_required
-from app.utils import allowed_file, get_file_extension, format_file_size, load_json_tags, dump_json_tags
+from app.utils import (
+    allowed_file,
+    get_file_extension,
+    format_file_size,
+    load_json_tags,
+    dump_json_tags,
+    compute_file_hash,
+)
 from app.folders import (
     get_root_folder,
     get_folder_options,
@@ -21,7 +27,7 @@ from app.folders import (
     delete_folder as delete_folder_record,
 )
 from app.embedding import upsert_file_embedding, delete_file_embedding, rebuild_all_embeddings
-from app.api_tokens import create_api_token, load_scopes, KNOWN_SCOPES
+from app.api_tokens import create_api_token, load_scopes, normalize_scopes, KNOWN_SCOPES
 
 
 def _get_all_tags():
@@ -82,9 +88,21 @@ def folders():
     """文件夹管理"""
     root = get_root_folder()
     all_folders = Folder.query.order_by(Folder.path.asc()).all()
+    file_counts = dict(
+        db.session.query(File.folder_id, db.func.count(File.id))
+        .group_by(File.folder_id)
+        .all()
+    )
+    child_counts = dict(
+        db.session.query(Folder.parent_id, db.func.count(Folder.id))
+        .group_by(Folder.parent_id)
+        .all()
+    )
     return render_template('admin/folders.html',
                            root=root,
                            folders=all_folders,
+                           file_counts=file_counts,
+                           child_counts=child_counts,
                            folder_options=get_folder_options())
 
 
@@ -214,7 +232,7 @@ def api_tokens():
 @admin_required
 def create_api_token_route():
     name = request.form.get('name', '')
-    scopes = request.form.getlist('scopes')
+    scopes = normalize_scopes(request.form.getlist('scopes'))
     if not scopes:
         flash('请至少选择一个权限范围', 'danger')
         return redirect(url_for('admin.api_tokens'))
@@ -298,9 +316,7 @@ def upload():
 
         # 读取文件内容并计算哈希
         file_data = uploaded_file.read()
-        sha256 = hashlib.sha256()
-        sha256.update(file_data)
-        file_hash = sha256.hexdigest()
+        file_hash = compute_file_hash(file_data)
 
         # 保留原始扩展名
         ext = get_file_extension(uploaded_file.filename)

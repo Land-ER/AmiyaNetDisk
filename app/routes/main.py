@@ -22,16 +22,21 @@ def folder_browser(folder_id):
     if not folder:
         abort(404)
 
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
     child_folders = folder.children.order_by(Folder.sort_order.asc(),
                                              Folder.name.asc()).all()
-    files = File.query.filter_by(folder_id=folder.id)\
-        .order_by(File.download_count.desc(), File.created_at.desc()).all()
+    pagination = File.query.filter_by(folder_id=folder.id)\
+        .order_by(File.download_count.desc(), File.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template('folder_browser.html',
                            folder=folder,
                            breadcrumbs=get_breadcrumbs(folder),
                            child_folders=child_folders,
-                           files=[_file_to_view(f, include_folder=False) for f in files],
+                           files=[_file_to_view(f, include_folder=False)
+                                  for f in pagination.items],
+                           pagination=pagination,
                            query='')
 
 
@@ -188,10 +193,14 @@ class _ListPagination:
         self.next_num = page + 1
 
     def iter_pages(self, left_edge=1, left_current=2, right_current=2, right_edge=1):
+        last = 0
         for num in range(1, self.pages + 1):
             if (
                 num <= left_edge or
                 self.page - left_current <= num <= self.page + right_current or
                 num > self.pages - right_edge
             ):
+                if last + 1 != num:
+                    yield None
                 yield num
+                last = num
