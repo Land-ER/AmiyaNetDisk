@@ -13,6 +13,19 @@
             <h1 class="detail-title">{{ file.title }}</h1>
         </div>
 
+        {% if breadcrumbs %}
+        <nav class="breadcrumbs detail-breadcrumbs">
+            {% for item in breadcrumbs %}
+                {% if not loop.last %}
+                    <a href="{{ url_for('main.folder_browser', folder_id=item.id) }}">{{ '全部资料' if item.parent_id is none else item.name }}</a>
+                    <span>/</span>
+                {% else %}
+                    <a href="{{ url_for('main.folder_browser', folder_id=item.id) }}">{{ '全部资料' if item.parent_id is none else item.name }}</a>
+                {% endif %}
+            {% endfor %}
+        </nav>
+        {% endif %}
+
         {% if display_tags %}
         <div class="detail-tags">
             {% for tag in display_tags %}
@@ -60,7 +73,11 @@
             {% else %}
                 <a href="{{ url_for('auth.login') }}" class="btn btn-outline">登录后下载</a>
             {% endif %}
-            <a href="{{ url_for('main.search') }}" class="btn btn-outline">返回搜索</a>
+            {% if file.folder %}
+                <a href="{{ url_for('main.folder_browser', folder_id=file.folder.id) }}" class="btn btn-outline">返回文件夹</a>
+            {% else %}
+                <a href="{{ url_for('main.search') }}" class="btn btn-outline">返回搜索</a>
+            {% endif %}
         </div>
     </div>
 </div>

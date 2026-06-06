@@ -4,14 +4,17 @@ from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_wtf import CSRFProtect
 from werkzeug.security import generate_password_hash
 from app.config import config_map
 from app.models import db, User
+from app.schema import ensure_schema
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = '请先登录'
 login_manager.login_message_category = 'warning'
+csrf = CSRFProtect()
 
 
 def create_app(config_name=None):
@@ -25,6 +28,7 @@ def create_app(config_name=None):
     # 初始化扩展
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
 
     # 注册蓝图
     from app.routes.auth import auth_bp
@@ -32,12 +36,15 @@ def create_app(config_name=None):
     from app.routes.file import file_bp
     from app.routes.admin import admin_bp
     from app.routes.root import root_bp
+    from app.routes.api import api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(file_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(root_bp, url_prefix='/root')
+    csrf.exempt(api_bp)
+    app.register_blueprint(api_bp)
 
     # 确保上传目录存在
     upload_folder = app.config['UPLOAD_FOLDER']
@@ -45,7 +52,7 @@ def create_app(config_name=None):
 
     # 创建数据库表和 root 用户
     with app.app_context():
-        db.create_all()
+        ensure_schema(app)
         _ensure_root_user(app)
 
     # 模板上下文注入

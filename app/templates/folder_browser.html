@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ folder.name }} - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="browser-page">
+    <div class="browser-toolbar">
+        <div>
+            <h1 class="page-title">{{ '全部资料' if folder.parent_id is none else folder.name }}</h1>
+            <nav class="breadcrumbs">
+                {% for item in breadcrumbs %}
+                    {% if not loop.last %}
+                        <a href="{{ url_for('main.folder_browser', folder_id=item.id) }}">{{ '全部资料' if item.parent_id is none else item.name }}</a>
+                        <span>/</span>
+                    {% else %}
+                        <span>{{ '全部资料' if item.parent_id is none else item.name }}</span>
+                    {% endif %}
+                {% endfor %}
+            </nav>
+        </div>
+        <form action="{{ url_for('main.search') }}" method="GET" class="search-form-inline browser-search">
+            <input type="hidden" name="folder_id" value="{{ folder.id }}">
+            <input type="text" name="q" class="search-input" placeholder="在当前文件夹搜索..." value="{{ query }}">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
+    </div>
+
+    <div class="folder-grid">
+        {% for child in child_folders %}
+            <a href="{{ url_for('main.folder_browser', folder_id=child.id) }}" class="folder-tile">
+                <span class="folder-icon">□</span>
+                <span class="folder-name">{{ child.name }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="file-list-panel">
+        <div class="list-header">
+            <span>文件</span>
+            <span>{{ files|length }} 个</span>
+        </div>
+        {% for file in files %}
+            <article class="file-row">
+                <div class="file-row-main">
+                    <a href="{{ url_for('main.file_detail', file_id=file.id) }}" class="file-row-title">{{ file.title }}</a>
+                    <div class="file-row-meta">
+                        <span>{{ file.file_size | filesizeformat }}</span>
+                        <span>{{ file.created_at.strftime('%Y-%m-%d') }}</span>
+                        <span>下载 {{ file.download_count }}</span>
+                    </div>
+                    {% if file.display_tags %}
+                    <div class="tag-list-inline">
+                        {% for tag in file.display_tags %}
+                            <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('file.download', file_id=file.id) }}" class="btn btn-sm btn-primary">下载</a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline">登录后下载</a>
+                {% endif %}
+            </article>
+        {% else %}
+            {% if not child_folders %}
+                <div class="empty-state">这个文件夹暂时没有内容</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

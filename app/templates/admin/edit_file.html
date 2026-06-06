@@ -7,7 +7,9 @@
         <nav class="sidebar-nav">
             <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link">仪表盘</a>
             <a href="{{ url_for('admin.file_list') }}" class="sidebar-link">文件管理</a>
+            <a href="{{ url_for('admin.folders') }}" class="sidebar-link">文件夹管理</a>
             <a href="{{ url_for('admin.upload') }}" class="sidebar-link">上传文件</a>
+            <a href="{{ url_for('admin.api_tokens') }}" class="sidebar-link">API Tokens</a>
             <a href="{{ url_for('admin.export_files') }}" class="sidebar-link">导出数据</a>
             <a href="{{ url_for('admin.download_logs') }}" class="sidebar-link">下载日志</a>
             <a href="{{ url_for('admin.user_list') }}" class="sidebar-link">用户管理</a>
@@ -26,6 +28,13 @@
                     <label for="title">文件标题</label>
                     {{ form.title(class="form-input", id="title") }}
                     {% for error in form.title.errors %}
+                        <span class="form-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                <div class="form-group">
+                    <label for="folder_id">所属文件夹</label>
+                    {{ form.folder_id(class="form-input", id="folder_id") }}
+                    {% for error in form.folder_id.errors %}
                         <span class="form-error">{{ error }}</span>
                     {% endfor %}
                 </div>

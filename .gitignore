@@ -3,13 +3,28 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
+build/
 *.egg
 .eggs/
 venv/
+.tox/
+.mypy_cache/
+.pytest_cache/
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
 
 # Environment
 .env
+.env.local
+.env.*.local
 *.db
+*.sqlite
+*.sqlite3
 
 # IDE
 .vscode/
@@ -25,9 +40,21 @@ CLAUDE.md
 uploads/*
 !uploads/.gitkeep
 
+# Generated campus verification config
+app/static/campus-verify.json
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Editor temp files
+*.swp
+*.swo
+*~
+*.bak
+
+# Pyenv
+.python-version
 
 # Flask
 instance/

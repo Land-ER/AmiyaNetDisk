@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}文件夹管理 - AmiyaNetDisk{% endblock %}
+{% block content %}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2 class="sidebar-title">管理后台</h2>
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link">仪表盘</a>
+            <a href="{{ url_for('admin.file_list') }}" class="sidebar-link">文件管理</a>
+            <a href="{{ url_for('admin.folders') }}" class="sidebar-link active">文件夹管理</a>
+            <a href="{{ url_for('admin.upload') }}" class="sidebar-link">上传文件</a>
+            <a href="{{ url_for('admin.api_tokens') }}" class="sidebar-link">API Tokens</a>
+            <a href="{{ url_for('admin.export_files') }}" class="sidebar-link">导出数据</a>
+            <a href="{{ url_for('admin.download_logs') }}" class="sidebar-link">下载日志</a>
+            <a href="{{ url_for('admin.user_list') }}" class="sidebar-link">用户管理</a>
+            {% if current_user.is_root() %}
+                <a href="{{ url_for('root.manage_admins') }}" class="sidebar-link">管理员管理</a>
+            {% endif %}
+        </nav>
+    </aside>
+    <main class="admin-content">
+        <h1 class="page-title">文件夹管理</h1>
+
+        <div class="form-card compact-form">
+            <form method="POST" action="{{ url_for('admin.create_folder_route') }}" class="admin-form folder-create-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label>父文件夹</label>
+                    <select name="parent_id" class="form-input">
+                        {% for id, label in folder_options %}
+                            <option value="{{ id }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>新文件夹名称</label>
+                    <input type="text" name="name" class="form-input" maxlength="120" required>
+                </div>
+                <div class="form-group">
+                    <label>说明</label>
+                    <input type="text" name="description" class="form-input">
+                </div>
+                <button type="submit" class="btn btn-primary">创建文件夹</button>
+            </form>
+        </div>
+
+        <table class="data-table folder-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>路径</th>
+                    <th>文件</th>
+                    <th>子目录</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for folder in folders %}
+                <tr>
+                    <td>{{ folder.id }}</td>
+                    <td>
+                        <a href="{{ url_for('main.folder_browser', folder_id=folder.id) }}">
+                            {{ '全部资料' if folder.parent_id is none else folder.path }}
+                        </a>
+                    </td>
+                    <td>{{ folder.files.count() }}</td>
+                    <td>{{ folder.children.count() }}</td>
+                    <td class="action-cell folder-actions">
+                        {% if folder.parent_id is not none %}
+                        <form method="POST" action="{{ url_for('admin.rename_folder_route', folder_id=folder.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="name" class="form-input table-input" value="{{ folder.name }}" required>
+                            <button type="submit" class="btn btn-sm btn-outline">重命名</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin.move_folder_route', folder_id=folder.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <select name="parent_id" class="form-input table-input">
+                                {% for id, label in folder_options %}
+                                    {% if id != folder.id %}
+                                        <option value="{{ id }}" {% if folder.parent_id == id %}selected{% endif %}>{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline">移动</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin.delete_folder_route', folder_id=folder.id) }}" onsubmit="return confirm('确定删除这个空文件夹吗？')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                        {% else %}
+                            <span class="muted">根目录</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</div>
+{% endblock %}

@@ -15,6 +15,11 @@ def download(file_id):
     if not file_record:
         abort(404)
 
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    file_path = os.path.join(upload_folder, file_record.filename_on_disk)
+    if not os.path.exists(file_path):
+        abort(404)
+
     # 记录下载日志
     log = DownloadLog(
         file_id=file_record.id,
@@ -27,8 +32,6 @@ def download(file_id):
     file_record.download_count += 1
     db.session.commit()
 
-    # 发送文件
-    upload_folder = current_app.config['UPLOAD_FOLDER']
     return send_from_directory(
         upload_folder,
         file_record.filename_on_disk,

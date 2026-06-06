@@ -1,7 +1,8 @@
 import hashlib
-import random
 import smtplib
 import json
+import secrets
+from urllib.parse import urlparse, urljoin
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from flask import current_app
@@ -17,7 +18,7 @@ def send_verification_code(email):
         return False, '发送太频繁，请60秒后再试'
 
     # 生成6位数字验证码
-    code = ''.join(random.choices('0123456789', k=6))
+    code = ''.join(secrets.choice('0123456789') for _ in range(6))
 
     # 保存到数据库（带重试）
     vc = VerificationCode(email=email, code=code)
@@ -117,3 +118,16 @@ def load_json_tags(tags_str):
 def dump_json_tags(tags_list):
     """将标签列表转为JSON字符串"""
     return json.dumps(tags_list, ensure_ascii=False)
+
+
+def is_safe_redirect_url(target):
+    """仅允许跳转到本站 URL，防止开放重定向。"""
+    from flask import request
+    if not target:
+        return False
+    host_url = urlparse(request.host_url)
+    redirect_url = urlparse(urljoin(request.host_url, target))
+    return (
+        redirect_url.scheme in ('http', 'https') and
+        host_url.netloc == redirect_url.netloc
+    )

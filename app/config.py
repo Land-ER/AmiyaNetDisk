@@ -31,6 +31,17 @@ class Config:
     ROOT_EMAIL = os.getenv('ROOT_EMAIL', 'root@example.com')
     ROOT_PASSWORD = os.getenv('ROOT_PASSWORD', 'root123456')
 
+    # Embedding 搜索配置（默认关闭，避免轻量部署下载模型）
+    EMBEDDING_ENABLED = os.getenv('EMBEDDING_ENABLED', 'false').lower() == 'true'
+    EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-small-zh-v1.5')
+    EMBEDDING_TOP_K = int(os.getenv('EMBEDDING_TOP_K', 50))
+
+    # 校园网注册验证配置（默认关闭）
+    CAMPUS_VERIFY_ENABLED = os.getenv('CAMPUS_VERIFY_ENABLED', 'false').lower() == 'true'
+    CAMPUS_VERIFY_MIN_SUCCESS = int(os.getenv('CAMPUS_VERIFY_MIN_SUCCESS', 1))
+    CAMPUS_VERIFY_TTL_SECONDS = int(os.getenv('CAMPUS_VERIFY_TTL_SECONDS', 600))
+    CAMPUS_VERIFY_ALLOWED_HOST = os.getenv('CAMPUS_VERIFY_ALLOWED_HOST', 'zb.hit.edu.cn')
+
     # 上传文件扩展名白名单
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
                           'jpg', 'png', 'gif', 'zip', 'rar', '7z', 'mp4', 'txt'}

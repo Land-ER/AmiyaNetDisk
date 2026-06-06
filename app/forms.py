@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, FileField, TextAreaField, SubmitField
+from wtforms import StringField, PasswordField, FileField, TextAreaField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Email, Length, Optional
 
 
@@ -19,6 +19,7 @@ class RegisterForm(FlaskForm):
 class UploadForm(FlaskForm):
     file = FileField('选择文件', validators=[DataRequired()])
     title = StringField('文件标题', validators=[DataRequired(), Length(max=200)])
+    folder_id = SelectField('所属文件夹', coerce=int, validators=[DataRequired()])
     search_tags = StringField('检索标签', validators=[Optional(), Length(max=500)])
     display_tags = StringField('展示标签', validators=[Optional(), Length(max=500)])
     submit = SubmitField('上传')
@@ -26,6 +27,7 @@ class UploadForm(FlaskForm):
 
 class FileEditForm(FlaskForm):
     title = StringField('文件标题', validators=[DataRequired(), Length(max=200)])
+    folder_id = SelectField('所属文件夹', coerce=int, validators=[DataRequired()])
     search_tags = StringField('检索标签', validators=[Optional(), Length(max=500)])
     display_tags = StringField('展示标签', validators=[Optional(), Length(max=500)])
     submit = SubmitField('保存')

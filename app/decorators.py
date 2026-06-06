@@ -23,7 +23,7 @@ def admin_required(f):
             return redirect(url_for('auth.login', next=request.url))
         if not current_user.is_admin():
             flash('权限不足，需要管理员权限', 'danger')
-            return redirect(url_for('main.search'))
+            return redirect(url_for('main.index'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -37,6 +37,6 @@ def root_required(f):
             return redirect(url_for('auth.login', next=request.url))
         if not current_user.is_root():
             flash('权限不足，需要Root权限', 'danger')
-            return redirect(url_for('main.search'))
+            return redirect(url_for('main.index'))
         return f(*args, **kwargs)
     return decorated_function
