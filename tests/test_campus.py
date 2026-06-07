@@ -1,4 +1,4 @@
-import os
+import json
 import re
 
 import pytest
@@ -34,6 +34,8 @@ def test_campus_config_returns_challenge(campus_client):
     assert response.json['enabled'] is True
     assert response.json['nonce']
     assert len(response.json['images']) >= 1
+    assert 'width' not in response.json['images'][0]
+    assert 'height' not in response.json['images'][0]
 
 
 def test_send_code_requires_csrf_and_campus_verification(campus_client):
@@ -74,9 +76,56 @@ def test_campus_image_url_normalization_rejects_untrusted_inputs(campus_app):
         assert normalize_campus_image_url('https://zb.hit.edu.cn:443/images/help/x.png') is None
         assert normalize_campus_image_url('https://zb.hit.edu.cn/not-allowed/x.png') is None
         assert (
+            normalize_campus_image_url('https://zb.hit.edu.cn//images/help/x.png') ==
+            'https://zb.hit.edu.cn/images/help/x.png'
+        )
+        assert (
             normalize_campus_image_url('https://zb.hit.edu.cn/images/help/x.png?cache=1#frag') ==
             'https://zb.hit.edu.cn/images/help/x.png'
         )
+
+
+def test_campus_check_rejects_forged_dimensions(campus_app, campus_client, tmp_path):
+    from app.campus import expected_proof
+
+    md5 = '2b42c6cc1acc57a041bd652371a9be12'
+    url = 'https://zb.hit.edu.cn/images/help/jiaocheng/demo.png'
+    config_path = tmp_path / 'campus-verify.json'
+    config_path.write_text(json.dumps({
+        'images': [{
+            'url': url,
+            'md5': md5,
+            'width': 640,
+            'height': 480,
+        }],
+        'generatedAt': '2026-06-07T00:00:00Z',
+    }), encoding='utf-8')
+    campus_app.config['CAMPUS_VERIFY_CONFIG_PATH'] = str(config_path)
+
+    register_page = campus_client.get('/register')
+    token = csrf_from_meta(register_page.data)
+    challenge = campus_client.get('/campus_verify/config').json
+    item = challenge['images'][0]
+    assert 'width' not in item
+    assert 'height' not in item
+
+    forged = campus_client.post('/campus_verify/check', json={'proofs': [{
+        'url': url,
+        'width': 1,
+        'height': 1,
+        'proof': expected_proof(challenge['nonce'], url, md5, 1, 1),
+    }]}, headers={'X-CSRFToken': token})
+    assert forged.status_code == 400
+    assert forged.json['success'] is False
+
+    valid = campus_client.post('/campus_verify/check', json={'proofs': [{
+        'url': url,
+        'width': 640,
+        'height': 480,
+        'proof': expected_proof(challenge['nonce'], url, md5, 640, 480),
+    }]}, headers={'X-CSRFToken': token})
+    assert valid.status_code == 200
+    assert valid.json['success'] is True
 
 
 def csrf_from_meta(data):

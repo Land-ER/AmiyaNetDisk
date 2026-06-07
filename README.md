@@ -124,6 +124,7 @@ cp .env.example .env
 | `CAMPUS_VERIFY_ENABLED` | 是否启用注册前校园网验证 | `false` |
 | `CAMPUS_VERIFY_MIN_SUCCESS` | 校园网验证需成功加载的图片数 | `1` |
 | `CAMPUS_VERIFY_TTL_SECONDS` | 校园网验证会话有效期 | `600` |
+| `CAMPUS_VERIFY_CONFIG_PATH` | 校园网验证私有配置文件路径 | `app/campus-verify.json` |
 
 > **关于 embedding 搜索**：默认安装保持轻量，语义搜索关闭。若要启用，请额外安装 `sentence-transformers`，再设置 `EMBEDDING_ENABLED=true`。首次启用模型会下载权重，建议在服务器上预热或使用持久化缓存。
 

@@ -382,7 +382,7 @@ CAMPUS_VERIFY_ALLOWED_HOST = os.getenv('CAMPUS_VERIFY_ALLOWED_HOST', 'zb.hit.edu
 
 Add:
 
-- `app/static/campus-verify.json`
+- `app/campus-verify.json`
 
 Shape:
 
@@ -391,14 +391,16 @@ Shape:
   "images": [
     {
       "url": "https://zb.hit.edu.cn/images/help/example.png",
-      "md5": "..."
+      "md5": "...",
+      "width": 640,
+      "height": 480
     }
   ],
   "generatedAt": "2026-06-06T00:00:00Z"
 }
 ```
 
-Do not blindly copy stale URLs from the reference repository forever. They should be refreshable and validated.
+`width` and `height` are optional for backward compatibility, but when present the server validates them before accepting a browser proof. Do not blindly copy stale URLs from the reference repository forever. They should be refreshable and validated.
 
 ### Security Notes
 

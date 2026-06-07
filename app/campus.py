@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -17,7 +18,10 @@ def campus_verification_enabled():
 
 
 def load_campus_verify_config():
-    path = os.path.join(current_app.static_folder, 'campus-verify.json')
+    default_path = os.path.join(os.path.dirname(__file__), 'campus-verify.json')
+    path = current_app.config.get('CAMPUS_VERIFY_CONFIG_PATH') or default_path
+    if not os.path.exists(path):
+        path = os.path.join(current_app.static_folder, 'campus-verify.json')
     if not os.path.exists(path):
         return {'images': [], 'generatedAt': None}
     with open(path, 'r', encoding='utf-8') as f:
@@ -27,7 +31,12 @@ def load_campus_verify_config():
         url = normalize_campus_image_url(item.get('url', ''))
         md5 = (item.get('md5') or '').strip().lower()
         if url and len(md5) == 32:
-            images.append({'url': url, 'md5': md5})
+            image = {'url': url, 'md5': md5}
+            width = _positive_int(item.get('width'))
+            height = _positive_int(item.get('height'))
+            if width and height:
+                image.update({'width': width, 'height': height})
+            images.append(image)
     return {'images': images, 'generatedAt': data.get('generatedAt')}
 
 
@@ -37,7 +46,7 @@ def normalize_campus_image_url(url):
     except ValueError:
         return None
     allowed_host = current_app.config.get('CAMPUS_VERIFY_ALLOWED_HOST', 'zb.hit.edu.cn')
-    path = '/' + parsed.path.lstrip('/')
+    path = re.sub(r'^/+', '/', parsed.path)
     if parsed.scheme != 'https' or parsed.hostname != allowed_host:
         return None
     if parsed.netloc != allowed_host:
@@ -55,7 +64,8 @@ def issue_campus_challenge():
         'issued_at': datetime.utcnow().isoformat(),
         'verified': False,
     }
-    return {'nonce': nonce, 'images': config['images'], 'generatedAt': config['generatedAt']}
+    images = [{'url': item['url'], 'md5': item['md5']} for item in config['images']]
+    return {'nonce': nonce, 'images': images, 'generatedAt': config['generatedAt']}
 
 
 def expected_proof(nonce, url, md5, width, height):
@@ -87,6 +97,14 @@ def verify_campus_proofs(proofs):
         digest = (proof.get('proof') or '').strip().lower()
         if not width or not height or not digest:
             continue
+        expected_width = by_url[url].get('width')
+        expected_height = by_url[url].get('height')
+        if expected_width and expected_height:
+            try:
+                if int(width) != expected_width or int(height) != expected_height:
+                    continue
+            except (TypeError, ValueError):
+                continue
         expected = expected_proof(nonce, url, by_url[url]['md5'], width, height)
         if secrets.compare_digest(expected, digest):
             matched += 1
@@ -125,3 +143,13 @@ def _parse_time(value):
         return datetime.fromisoformat(value)
     except ValueError:
         return None
+
+
+def _positive_int(value):
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return None
+    return value

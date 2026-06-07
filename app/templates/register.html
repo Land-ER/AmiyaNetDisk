@@ -71,6 +71,9 @@ function loadCampusImage(item, nonce) {
             clearTimeout(timer);
             img.onload = null;
             img.onerror = null;
+            if (!value) {
+                img.src = '';
+            }
             resolve(value);
         }
         img.onload = async () => {

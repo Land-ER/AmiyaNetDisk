@@ -41,6 +41,7 @@ class Config:
     CAMPUS_VERIFY_MIN_SUCCESS = int(os.getenv('CAMPUS_VERIFY_MIN_SUCCESS', 1))
     CAMPUS_VERIFY_TTL_SECONDS = int(os.getenv('CAMPUS_VERIFY_TTL_SECONDS', 600))
     CAMPUS_VERIFY_ALLOWED_HOST = os.getenv('CAMPUS_VERIFY_ALLOWED_HOST', 'zb.hit.edu.cn')
+    CAMPUS_VERIFY_CONFIG_PATH = os.getenv('CAMPUS_VERIFY_CONFIG_PATH', '')
 
     # 上传文件扩展名白名单
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
