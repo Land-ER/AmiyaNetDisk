@@ -1,16 +1,21 @@
-import csv
-import io
 import os
 import json
 import hashlib
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from app.models import db, File, DownloadLog, OperationLog, User, Folder, ApiToken
 from app.forms import UploadForm, FileEditForm
 from app.decorators import admin_required
-from app.utils import allowed_file, get_file_extension, format_file_size, load_json_tags, dump_json_tags
+from app.utils import (
+    allowed_file,
+    get_file_extension,
+    format_file_size,
+    load_json_tags,
+    dump_json_tags,
+    compute_file_hash,
+)
 from app.folders import (
     get_root_folder,
     get_folder_options,
@@ -21,7 +26,7 @@ from app.folders import (
     delete_folder as delete_folder_record,
 )
 from app.embedding import upsert_file_embedding, delete_file_embedding, rebuild_all_embeddings
-from app.api_tokens import create_api_token, load_scopes, KNOWN_SCOPES
+from app.api_tokens import create_api_token, load_scopes, normalize_scopes, KNOWN_SCOPES
 
 
 def _get_all_tags():
@@ -82,9 +87,21 @@ def folders():
     """文件夹管理"""
     root = get_root_folder()
     all_folders = Folder.query.order_by(Folder.path.asc()).all()
+    file_counts = dict(
+        db.session.query(File.folder_id, db.func.count(File.id))
+        .group_by(File.folder_id)
+        .all()
+    )
+    child_counts = dict(
+        db.session.query(Folder.parent_id, db.func.count(Folder.id))
+        .group_by(Folder.parent_id)
+        .all()
+    )
     return render_template('admin/folders.html',
                            root=root,
                            folders=all_folders,
+                           file_counts=file_counts,
+                           child_counts=child_counts,
                            folder_options=get_folder_options())
 
 
@@ -214,7 +231,7 @@ def api_tokens():
 @admin_required
 def create_api_token_route():
     name = request.form.get('name', '')
-    scopes = request.form.getlist('scopes')
+    scopes = normalize_scopes(request.form.getlist('scopes'))
     if not scopes:
         flash('请至少选择一个权限范围', 'danger')
         return redirect(url_for('admin.api_tokens'))
@@ -298,9 +315,7 @@ def upload():
 
         # 读取文件内容并计算哈希
         file_data = uploaded_file.read()
-        sha256 = hashlib.sha256()
-        sha256.update(file_data)
-        file_hash = sha256.hexdigest()
+        file_hash = compute_file_hash(file_data)
 
         # 保留原始扩展名
         ext = get_file_extension(uploaded_file.filename)
@@ -552,6 +567,9 @@ def reset_user_password(user_id):
             flash('密码长度不能少于6位', 'danger')
             return render_template('admin/reset_password.html', target_user=user)
 
+        # 前端成功执行 SHA-256 后会设置 hashed=1；若未设置则说明是明文，后端补哈希
+        if request.form.get('hashed') != '1':
+            new_password = hashlib.sha256(new_password.encode('utf-8')).hexdigest()
         user.password_hash = generate_password_hash(new_password)
 
         log = OperationLog(
@@ -569,37 +587,3 @@ def reset_user_password(user_id):
     return render_template('admin/reset_password.html', target_user=user)
 
 
-@admin_bp.route('/export/files')
-@admin_required
-def export_files():
-    """导出所有文件列表及标签信息为 CSV"""
-    files = File.query.order_by(File.id.asc()).all()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['ID', '标题', '所属文件夹', '原始文件名', '磁盘文件名', '文件大小(字节)',
-                     '检索标签', '展示标签', '下载次数', '上传者', '上传时间', '最后编辑'])
-
-    for f in files:
-        uploader = db.session.get(User, f.uploader_id)
-        writer.writerow([
-            f.id,
-            f.title,
-            f.folder.path if f.folder else '',
-            f.original_filename,
-            f.filename_on_disk,
-            f.file_size,
-            ', '.join(load_json_tags(f.search_tags)),
-            ', '.join(load_json_tags(f.display_tags)),
-            f.download_count,
-            uploader.email if uploader else '',
-            f.created_at.strftime('%Y-%m-%d %H:%M:%S') if f.created_at else '',
-            f.updated_at.strftime('%Y-%m-%d %H:%M:%S') if f.updated_at else '',
-        ])
-
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv; charset=utf-8-sig',
-        headers={'Content-Disposition': 'attachment; filename=amiyanetdisk_export.csv'},
-    )

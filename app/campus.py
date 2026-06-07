@@ -40,9 +40,11 @@ def normalize_campus_image_url(url):
     path = '/' + parsed.path.lstrip('/')
     if parsed.scheme != 'https' or parsed.hostname != allowed_host:
         return None
+    if parsed.netloc != allowed_host:
+        return None
     if not any(path.startswith(prefix) for prefix in ALLOWED_PREFIXES):
         return None
-    return parsed._replace(path=path, fragment='').geturl()
+    return parsed._replace(path=path, params='', query='', fragment='').geturl()
 
 
 def issue_campus_challenge():

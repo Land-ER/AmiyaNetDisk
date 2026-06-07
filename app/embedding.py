@@ -62,7 +62,10 @@ def encode_text(text):
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
-            raise RuntimeError('sentence-transformers 未安装，无法启用 embedding 搜索') from exc
+            raise RuntimeError(
+                'sentence-transformers 未安装，无法启用 embedding 搜索。'
+                '请执行: pip install sentence-transformers'
+            ) from exc
         _model_cache[model_name] = SentenceTransformer(model_name)
     vector = _model_cache[model_name].encode(text, normalize_embeddings=True)
     return [float(item) for item in vector]
@@ -110,6 +113,8 @@ def semantic_search(query_text, folder_id=None, limit=None):
     if folder_id:
         query = query.filter(File.folder_id == folder_id)
 
+    # 注：当前实现为全量暴力比对，数据量 < 1 万条时性能可接受。
+    # 若文件量持续增长，建议引入 faiss / usearch 等向量索引。
     scored = []
     for item in query.all():
         score = cosine_similarity(query_vector, deserialize_vector(item.vector))

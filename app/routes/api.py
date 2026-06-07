@@ -143,7 +143,8 @@ def upload_file_api():
 def search():
     q = request.args.get('q', '').strip()
     folder_id = request.args.get('folder_id', type=int)
-    limit = min(request.args.get('limit', 20, type=int), 100)
+    requested_limit = request.args.get('limit', 20, type=int)
+    limit = min(max(requested_limit or 20, 1), 100)
 
     query = File.query
     if folder_id:

@@ -115,7 +115,7 @@ cp .env.example .env
 | `SMTP_USERNAME` | SMTP 用户名 | （空） |
 | `SMTP_PASSWORD` | SMTP 密码 | （空） |
 | `SMTP_FROM` | 发件人地址 | `noreply@example.com` |
-| `ROOT_EMAIL` | 超级管理员邮箱 | `root@example.com` |
+| `ROOT_EMAIL` | 超级管理员邮箱 | `admin@example.com` |
 | `ROOT_PASSWORD` | 超级管理员密码 | `root123456` |
 | `MAX_CONTENT_LENGTH` | 上传文件大小限制 | `104857600`（100MB） |
 | `EMBEDDING_ENABLED` | 是否启用 embedding 语义搜索 | `false` |

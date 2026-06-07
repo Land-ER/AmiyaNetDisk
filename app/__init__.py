@@ -17,13 +17,15 @@ login_manager.login_message_category = 'warning'
 csrf = CSRFProtect()
 
 
-def create_app(config_name=None):
+def create_app(config_name=None, config_overrides=None):
     """应用工厂函数"""
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'default')
 
     app = Flask(__name__)
     app.config.from_object(config_map.get(config_name, config_map['default']))
+    if config_overrides:
+        app.config.update(config_overrides)
 
     # 初始化扩展
     db.init_app(app)
@@ -64,7 +66,7 @@ def create_app(config_name=None):
 
 
 def _ensure_root_user(app):
-    """确保 root 用户存在（每次启动时检查配置一致性）"""
+    """确保 root 用户存在（仅首次创建时写入密码，不覆盖已有凭据）"""
     root_email = app.config['ROOT_EMAIL']
     root_password = app.config['ROOT_PASSWORD']
 
@@ -74,10 +76,13 @@ def _ensure_root_user(app):
 
     root_user = User.query.filter_by(role='root').first()
     if root_user:
-        root_user.email = root_email
-        root_user.password_hash = pwd_hash
-        db.session.commit()
-        app.logger.info(f'root 账号已同步配置: {root_email}')
+        # 仅同步邮箱，不覆盖已存在的密码（防止重启后密码被还原）
+        if root_user.email != root_email:
+            root_user.email = root_email
+            db.session.commit()
+            app.logger.info(f'root 邮箱已同步: {root_email}')
+        else:
+            app.logger.debug('root 用户已存在，跳过密码覆盖')
         return
 
     # 检查配置邮箱是否已被其他用户使用

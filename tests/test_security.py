@@ -1,4 +1,6 @@
 from conftest import csrf_from_response, login_as, sha256_password
+from app.models import db, User
+from werkzeug.security import check_password_hash
 
 
 def test_admin_routes_require_login(client):
@@ -47,8 +49,46 @@ def test_login_rejects_external_next_redirect(client):
     assert response.location == '/'
 
 
+def test_admin_reset_password_page_hashes_password_before_submit(client, root_user, normal_user):
+    login_as(client, root_user)
+
+    response = client.get(f'/admin/user/{normal_user.id}/reset_password')
+
+    assert response.status_code == 200
+    assert b'id="resetPwdForm"' in response.data
+    assert b'hashPassword(pwd.value)' in response.data
+
+
+def test_admin_reset_password_matches_login_hash_flow(client, app, root_user, normal_user):
+    login_as(client, root_user)
+
+    page = client.get(f'/admin/user/{normal_user.id}/reset_password')
+    token = csrf_from_response(page)
+    response = client.post(f'/admin/user/{normal_user.id}/reset_password', data={
+        'csrf_token': token,
+        'hashed': '1',
+        'password': sha256_password('new-password'),
+    })
+    assert response.status_code == 302
+
+    client.get('/logout')
+    response = client.post('/login', data={
+        'csrf_token': csrf_from_response(client.get('/login')),
+        'email': normal_user.email,
+        'password': sha256_password('new-password'),
+    })
+
+    assert response.status_code == 302
+    assert response.location == '/'
+
+    with app.app_context():
+        user = db.session.get(User, normal_user.id)
+        assert check_password_hash(user.password_hash, sha256_password('new-password'))
+
+
 def get_root_id(app):
     from app.folders import get_root_folder
 
     with app.app_context():
         return get_root_folder().id
+

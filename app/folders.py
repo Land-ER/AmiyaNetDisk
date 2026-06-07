@@ -1,4 +1,5 @@
 from datetime import datetime
+from collections import deque
 
 from app.models import db, Folder, File
 
@@ -122,9 +123,9 @@ def _update_descendant_paths(folder, old_path):
 
 def get_descendant_ids(folder):
     ids = []
-    queue = list(folder.children.order_by(Folder.sort_order.asc(), Folder.name.asc()).all())
+    queue = deque(folder.children.order_by(Folder.sort_order.asc(), Folder.name.asc()).all())
     while queue:
-        current = queue.pop(0)
+        current = queue.popleft()
         ids.append(current.id)
         queue.extend(current.children.order_by(Folder.sort_order.asc(), Folder.name.asc()).all())
     return ids

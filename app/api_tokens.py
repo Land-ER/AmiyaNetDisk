@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime
 
 from flask import request, jsonify, g
+from sqlalchemy import update
 
 from app.models import db, ApiToken
 
@@ -76,6 +77,8 @@ def api_token_required(required_scope):
                                               is_active=True).first()
             if not record:
                 return jsonify({'error': 'invalid_token'}), 401
+            if not record.creator or not record.creator.is_active or not record.creator.is_admin():
+                return jsonify({'error': 'invalid_token_owner'}), 401
 
             if record.expires_at and record.expires_at < datetime.utcnow():
                 return jsonify({'error': 'token_expired'}), 401
@@ -85,9 +88,8 @@ def api_token_required(required_scope):
                 return jsonify({'error': 'insufficient_scope',
                                 'required_scope': required_scope}), 403
 
-            record.last_used_at = datetime.utcnow()
+            _touch_last_used(record.id)
             g.api_token = record
-            db.session.commit()
             return view(*args, **kwargs)
 
         return wrapped
@@ -99,3 +101,12 @@ def _extract_bearer_token():
     if not header.startswith('Bearer '):
         return None
     return header.removeprefix('Bearer ').strip()
+
+
+def _touch_last_used(token_id):
+    with db.engine.begin() as connection:
+        connection.execute(
+            update(ApiToken)
+            .where(ApiToken.id == token_id)
+            .values(last_used_at=datetime.utcnow())
+        )
