@@ -5,6 +5,9 @@
     <!-- 搜索栏 -->
     <div class="search-bar">
         <form action="{{ url_for('main.search') }}" method="GET" class="search-form-inline">
+            {% if folder_id %}
+                <input type="hidden" name="folder_id" value="{{ folder_id }}">
+            {% endif %}
             <input type="text" name="q" class="search-input" placeholder="搜索文件..." value="{{ query }}">
             <select name="mode" class="form-input search-mode">
                 <option value="hybrid" {% if mode == 'hybrid' %}selected{% endif %}>混合搜索</option>
@@ -63,18 +66,18 @@
         {% if pagination.pages > 1 %}
             <div class="pagination">
                 {% if pagination.has_prev %}
-                    <a href="{{ url_for('main.search', q=query, mode=mode, page=pagination.prev_num) }}" class="page-link">&laquo; 上一页</a>
+                    <a href="{{ url_for('main.search', q=query, mode=mode, folder_id=folder_id, page=pagination.prev_num) }}" class="page-link">&laquo; 上一页</a>
                 {% endif %}
                 {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
                     {% if page_num %}
-                        <a href="{{ url_for('main.search', q=query, mode=mode, page=page_num) }}"
+                        <a href="{{ url_for('main.search', q=query, mode=mode, folder_id=folder_id, page=page_num) }}"
                            class="page-link {% if page_num == pagination.page %}page-active{% endif %}">{{ page_num }}</a>
                     {% else %}
                         <span class="page-ellipsis">...</span>
                     {% endif %}
                 {% endfor %}
                 {% if pagination.has_next %}
-                    <a href="{{ url_for('main.search', q=query, mode=mode, page=pagination.next_num) }}" class="page-link">下一页 &raquo;</a>
+                    <a href="{{ url_for('main.search', q=query, mode=mode, folder_id=folder_id, page=pagination.next_num) }}" class="page-link">下一页 &raquo;</a>
                 {% endif %}
             </div>
         {% endif %}

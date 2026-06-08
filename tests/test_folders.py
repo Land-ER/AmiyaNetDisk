@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from app.folders import get_root_folder
+from app.folders import create_folder, get_root_folder
 from app.models import File, Folder
 from app.utils import compute_file_hash
 from conftest import csrf_from_response, login_as
@@ -70,6 +70,69 @@ def test_admin_creates_folder_and_uploads_file(client, app, root_user, monkeypat
     search_page = client.get('/search?q=代数&mode=keyword')
     assert search_page.status_code == 200
     assert '高等代数期末复习资料'.encode('utf-8') in search_page.data
+
+
+def test_folder_search_includes_descendants(client, app, db_session, root_user):
+    with app.app_context():
+        root = get_root_folder()
+        school = create_folder('计算学部', parent_id=root.id)
+        course = create_folder('数据结构', parent_id=school.id)
+        sibling = create_folder('物理学院', parent_id=root.id)
+        deep_file = File(
+            title='递归搜索命中资料',
+            filename_on_disk='recursive.txt',
+            original_filename='recursive.txt',
+            file_size=128,
+            search_tags='["递归搜索"]',
+            display_tags='["测试"]',
+            folder_id=course.id,
+            uploader_id=root_user.id,
+        )
+        sibling_file = File(
+            title='兄弟目录资料',
+            filename_on_disk='sibling.txt',
+            original_filename='sibling.txt',
+            file_size=128,
+            search_tags='["兄弟目录"]',
+            display_tags='["测试"]',
+            folder_id=sibling.id,
+            uploader_id=root_user.id,
+        )
+        db_session.add_all([deep_file, sibling_file])
+        db_session.commit()
+        root_id = root.id
+        school_id = school.id
+        sibling_id = sibling.id
+
+    root_search = client.get(f'/search?q=递归搜索&mode=keyword&folder_id={root_id}')
+    assert root_search.status_code == 200
+    assert '递归搜索命中资料'.encode('utf-8') in root_search.data
+
+    parent_search = client.get(f'/search?q=递归搜索&mode=keyword&folder_id={school_id}')
+    assert parent_search.status_code == 200
+    assert '递归搜索命中资料'.encode('utf-8') in parent_search.data
+
+    sibling_search = client.get(f'/search?q=递归搜索&mode=keyword&folder_id={sibling_id}')
+    assert sibling_search.status_code == 200
+    assert '递归搜索命中资料'.encode('utf-8') not in sibling_search.data
+
+
+def test_home_search_is_global_but_child_folder_search_is_scoped(client, app, db_session):
+    with app.app_context():
+        root = get_root_folder()
+        child = create_folder('首页搜索范围', parent_id=root.id)
+        db_session.commit()
+        child_id = child.id
+
+    home_page = client.get('/')
+    assert home_page.status_code == 200
+    assert f'name="folder_id" value="{get_root_id(app)}"'.encode('utf-8') not in home_page.data
+    assert '搜索全部文件...'.encode('utf-8') in home_page.data
+
+    child_page = client.get(f'/folder/{child_id}')
+    assert child_page.status_code == 200
+    assert f'name="folder_id" value="{child_id}"'.encode('utf-8') in child_page.data
+    assert '在当前文件夹搜索...'.encode('utf-8') in child_page.data
 
 
 def test_folder_validation_rejects_abuse(client, app, root_user, db_session):

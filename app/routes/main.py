@@ -1,7 +1,12 @@
 from flask import Blueprint, render_template, request, abort, jsonify
 from sqlalchemy import or_
 from app.models import db, File, User, Folder
-from app.folders import get_root_folder, get_breadcrumbs, build_folder_tree
+from app.folders import (
+    get_root_folder,
+    get_breadcrumbs,
+    build_folder_tree,
+    get_folder_scope_ids,
+)
 from app.embedding import semantic_search, is_embedding_enabled
 from app.utils import load_json_tags, format_file_size
 
@@ -56,13 +61,14 @@ def search():
     per_page = 12
 
     query = File.query
+    folder_scope_ids = get_folder_scope_ids(folder_id) if folder_id else []
     if folder_id:
-        query = query.filter(File.folder_id == folder_id)
+        query = query.filter(File.folder_id.in_(folder_scope_ids))
 
     if q:
         if mode in ('semantic', 'hybrid') and is_embedding_enabled():
             try:
-                files = _semantic_or_hybrid_files(q, folder_id, mode)
+                files = _semantic_or_hybrid_files(q, folder_scope_ids, mode)
                 total = len(files)
                 start = (page - 1) * per_page
                 selected = files[start:start + per_page]
@@ -72,6 +78,7 @@ def search():
                                        pagination=pagination,
                                        query=q,
                                        mode=mode,
+                                       folder_id=folder_id,
                                        embedding_enabled=True)
             except RuntimeError:
                 mode = 'keyword'
@@ -97,6 +104,7 @@ def search():
                            pagination=pagination,
                            query=q,
                            mode=mode,
+                           folder_id=folder_id,
                            embedding_enabled=is_embedding_enabled())
 
 
@@ -131,15 +139,15 @@ def _file_to_view(f, include_folder=True):
     }
 
 
-def _semantic_or_hybrid_files(q, folder_id, mode):
-    semantic_pairs = semantic_search(q, folder_id=folder_id)
+def _semantic_or_hybrid_files(q, folder_scope_ids, mode):
+    semantic_pairs = semantic_search(q, folder_ids=folder_scope_ids)
     semantic_by_id = {file_record.id: score for file_record, score in semantic_pairs}
     candidates = {file_record.id: file_record for file_record, _ in semantic_pairs}
 
     if mode == 'hybrid':
         keyword_query = File.query
-        if folder_id:
-            keyword_query = keyword_query.filter(File.folder_id == folder_id)
+        if folder_scope_ids:
+            keyword_query = keyword_query.filter(File.folder_id.in_(folder_scope_ids))
         for keyword in q.split():
             like_pattern = f'%{keyword}%'
             keyword_query = keyword_query.outerjoin(Folder, File.folder_id == Folder.id).filter(

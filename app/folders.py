@@ -131,6 +131,13 @@ def get_descendant_ids(folder):
     return ids
 
 
+def get_folder_scope_ids(folder_id):
+    folder = db.session.get(Folder, folder_id)
+    if not folder:
+        return []
+    return [folder.id] + get_descendant_ids(folder)
+
+
 def get_breadcrumbs(folder):
     breadcrumbs = []
     current = folder

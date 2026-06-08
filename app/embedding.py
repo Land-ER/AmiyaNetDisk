@@ -100,14 +100,16 @@ def delete_file_embedding(file_id):
     FileEmbedding.query.filter_by(file_id=file_id).delete()
 
 
-def semantic_search(query_text, folder_id=None, limit=None):
+def semantic_search(query_text, folder_id=None, folder_ids=None, limit=None):
     if not is_embedding_enabled() or not query_text.strip():
         return []
 
     limit = limit or current_app.config.get('EMBEDDING_TOP_K', 50)
     query_vector = encode_text(query_text)
     query = FileEmbedding.query.join(File)
-    if folder_id:
+    if folder_ids:
+        query = query.filter(File.folder_id.in_(folder_ids))
+    elif folder_id:
         query = query.filter(File.folder_id == folder_id)
 
     scored = []
