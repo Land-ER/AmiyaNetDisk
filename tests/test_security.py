@@ -55,8 +55,8 @@ def test_admin_reset_password_page_hashes_password_before_submit(client, root_us
     response = client.get(f'/admin/user/{normal_user.id}/reset_password')
 
     assert response.status_code == 200
-    assert b'id="resetPwdForm"' in response.data
-    assert b'hashPassword(pwd.value)' in response.data
+    assert b'id="adminResetPasswordForm"' in response.data
+    assert b'submitFormWithHashedPassword(this, pwd)' in response.data
 
 
 def test_admin_reset_password_matches_login_hash_flow(client, app, root_user, normal_user):

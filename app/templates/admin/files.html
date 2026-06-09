@@ -31,7 +31,6 @@
             </select>
             <button type="submit" class="btn btn-primary">搜索</button>
             <a href="{{ url_for('admin.upload') }}" class="btn btn-success">上传新文件</a>
-            <a href="{{ url_for('admin.export_files') }}" class="btn btn-outline">导出 CSV</a>
         </form>
         <form method="POST" action="{{ url_for('admin.rebuild_embeddings_route') }}" class="inline-action-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

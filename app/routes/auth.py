@@ -1,9 +1,9 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import db, User
 from app.forms import LoginForm, RegisterForm
+from app.passwords import check_user_password, generate_user_password_hash, is_sha256_hex
 from app.utils import send_verification_code, verify_code, is_safe_redirect_url
 from app.campus import (
     campus_verification_enabled,
@@ -24,8 +24,13 @@ def register():
     form = RegisterForm()
     if form.validate_on_submit():
         email = form.email.data.strip()
-        password = form.password.data  # 前端已做 SHA-256
+        password = form.password.data
         code = form.code.data.strip()
+
+        # 校验密码格式（必须为前端提交的 SHA-256）
+        if not is_sha256_hex(password):
+            flash('密码安全处理失败，请刷新页面后重试', 'danger')
+            return render_template('register.html', form=form)
 
         # 验证邮箱唯一性
         if User.query.filter_by(email=email).first():
@@ -44,7 +49,7 @@ def register():
         # 创建用户
         user = User(
             email=email,
-            password_hash=generate_password_hash(password),
+            password_hash=generate_user_password_hash(password),
             role='user',
             is_active=True,
             campus_verified_at=datetime.utcnow() if campus_verification_enabled() else None,
@@ -70,7 +75,11 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         email = form.email.data.strip()
-        password = form.password.data  # 前端已做 SHA-256
+        password = form.password.data
+
+        if not is_sha256_hex(password):
+            flash('密码安全处理失败，请刷新页面后重试', 'danger')
+            return render_template('login.html', form=form)
 
         user = User.query.filter_by(email=email).first()
         if not user:
@@ -81,7 +90,7 @@ def login():
             flash('账号已被禁用，请联系管理员', 'danger')
             return render_template('login.html', form=form)
 
-        if check_password_hash(user.password_hash, password):
+        if check_user_password(user.password_hash, password):
             login_user(user)
             next_page = request.args.get('next')
             flash('登录成功', 'success')
@@ -149,10 +158,14 @@ def reset_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
         code = request.form.get('code', '').strip()
-        password = request.form.get('password', '')  # 前端已做 SHA-256
+        password = request.form.get('password', '')
 
         if not email or not code or not password:
             flash('请填写所有字段', 'danger')
+            return render_template('reset_password.html', email=email)
+
+        if not is_sha256_hex(password):
+            flash('密码安全处理失败，请刷新页面后重试', 'danger')
             return render_template('reset_password.html', email=email)
 
         # 验证邮箱存在
@@ -167,7 +180,7 @@ def reset_password():
             return render_template('reset_password.html', email=email)
 
         # 更新密码
-        user.password_hash = generate_password_hash(password)
+        user.password_hash = generate_user_password_hash(password)
         db.session.commit()
 
         flash('密码重置成功，请使用新密码登录', 'success')

@@ -48,18 +48,25 @@ AmiyaNetDisk/
 ├── app/
 │   ├── __init__.py             # 应用工厂 create_app()
 │   ├── config.py               # 配置类（环境变量读取）
-│   ├── models.py               # SQLAlchemy 数据模型（5个模型）
+│   ├── models.py               # SQLAlchemy 数据模型（7个模型）
 │   ├── forms.py                # WTForms 表单定义
-│   ├── utils.py                # 工具函数（哈希、邮件、标签处理）
+│   ├── passwords.py            # 统一密码处理（SHA-256 校验 / bcrypt 存储）
+│   ├── utils.py                # 工具函数（哈希、邮件、标签处理、IP 获取）
 │   ├── decorators.py           # 权限装饰器（login/admin/root_required）
+│   ├── api_tokens.py           # API Token 生成 / 校验 / Scope 管理
+│   ├── embedding.py            # 语义搜索（sentence-transformers 封装）
+│   ├── folders.py              # 文件夹树操作（创建/移动/删除/递归检索）
+│   ├── campus.py               # 校园网注册验证（图片加载证明）
+│   ├── schema.py               # 数据库 Schema 迁移辅助
 │   │
 │   ├── routes/
 │   │   ├── __init__.py
-│   │   ├── auth.py             # 注册 / 登录 / 登出 / 验证码
-│   │   ├── main.py             # 首页 / 公开搜索
+│   │   ├── auth.py             # 注册 / 登录 / 登出 / 验证码 / 校园网验证
+│   │   ├── main.py             # 首页 / 公开搜索 / 文件夹浏览
 │   │   ├── file.py             # 文件下载
 │   │   ├── admin.py            # 管理员后台
-│   │   └── root.py             # Root 管理员管理
+│   │   ├── root.py             # Root 管理员管理
+│   │   └── api.py              # REST API（v1，Bearer Token 认证）
 │   │
 │   ├── templates/
 │   │   ├── base.html           # 基础模板（导航栏 + Flash + 页脚）
@@ -124,6 +131,8 @@ cp .env.example .env
 | `CAMPUS_VERIFY_ENABLED` | 是否启用注册前校园网验证 | `false` |
 | `CAMPUS_VERIFY_MIN_SUCCESS` | 校园网验证需成功加载的图片数 | `1` |
 | `CAMPUS_VERIFY_TTL_SECONDS` | 校园网验证会话有效期 | `600` |
+| `CAMPUS_VERIFY_CONFIG_PATH` | 校园网验证私有配置文件路径 | （空，默认使用 `app/campus-verify.json`） |
+| `CAMPUS_VERIFY_ALLOWED_HOST` | 校园网验证图片允许的主机 | `zb.hit.edu.cn` |
 
 > **关于 embedding 搜索**：默认安装保持轻量，语义搜索关闭。若要启用，请额外安装 `sentence-transformers`，再设置 `EMBEDDING_ENABLED=true`。首次启用模型会下载权重，建议在服务器上预热或使用持久化缓存。
 
@@ -201,12 +210,17 @@ docker run -d \
 
 | 方法 | 路径 | 功能 |
 |------|------|------|
-| GET | `/` | 首页（重定向到搜索页） |
-| GET | `/search` | 文件搜索（分页 12 条/页） |
+| GET | `/` | 首页（根目录浏览） |
+| GET | `/search?q=&mode=hybrid&folder_id=&page=` | 文件搜索（分页 12 条/页） |
+| GET | `/folder/<id>?page=` | 文件夹浏览（分页 20 条/页） |
+| GET | `/file/<id>` | 文件详情页（公开） |
 | GET | `/login` | 登录页面 |
-| GET | `/register` | 注册页面 |
+| GET | `/register` | 注册页面（含校园网验证） |
 | GET | `/reset_password` | 找回密码页面 |
-| POST | `/send_code` | 发送验证码（AJAX，注册/找回密码复用） |
+| POST | `/send_code` | 发送验证码（JSON） |
+| GET | `/campus_verify/config` | 校园网验证挑战（JSON） |
+| POST | `/campus_verify/check` | 校验校园网图片加载证明（JSON） |
+| GET | `/api/folders/tree` | 公开文件夹树（JSON） |
 
 ### 需登录
 
@@ -220,11 +234,21 @@ docker run -d \
 | 方法 | 路径 | 功能 |
 |------|------|------|
 | GET | `/admin/dashboard` | 仪表盘概览 |
-| GET | `/admin/files` | 文件管理列表 |
+| GET | `/admin/files` | 文件管理列表（分页，支持搜索和文件夹筛选） |
 | GET/POST | `/admin/upload` | 上传文件 |
-| GET/POST | `/admin/file/<id>/edit` | 编辑文件标题/标签 |
+| GET/POST | `/admin/file/<id>/edit` | 编辑文件标题/标签/文件夹 |
 | POST | `/admin/file/<id>/delete` | 删除文件 |
-| GET | `/admin/download_logs` | 下载日志查询 |
+| GET | `/admin/folders` | 文件夹管理页面 |
+| GET | `/admin/folders/tree` | 文件夹树 JSON |
+| POST | `/admin/folder/create` | 创建文件夹 |
+| POST | `/admin/folder/<id>/rename` | 重命名文件夹 |
+| POST | `/admin/folder/<id>/move` | 移动文件夹 |
+| POST | `/admin/folder/<id>/delete` | 删除文件夹 |
+| POST | `/admin/embeddings/rebuild` | 重建所有语义索引 |
+| GET | `/admin/api_tokens` | API Token 管理页面 |
+| POST | `/admin/api_token/create` | 创建 API Token |
+| POST | `/admin/api_token/<id>/disable` | 停用 API Token |
+| GET | `/admin/download_logs?q=&page=` | 下载日志查询 |
 | GET | `/admin/users` | 用户列表 |
 | POST | `/admin/user/<id>/ban` | 禁用用户 |
 | POST | `/admin/user/<id>/unban` | 启用用户 |
@@ -238,48 +262,274 @@ docker run -d \
 
 ---
 
-## 机器人 API
+## REST API v1
 
-管理员可在后台 `API Tokens` 页面创建机器人 Token。Token 明文只在创建后显示一次，数据库仅保存哈希。
+### 认证方式
 
-请求时使用 Bearer Token：
+管理员在后台 `API Tokens` 页面创建机器人 Token。Token 前缀为 `and_`，明文只在创建后显示一次，数据库仅保存 SHA-256 哈希。
+
+所有请求使用 **Bearer Token**：
 
 ```http
-Authorization: Bearer and_xxx
+Authorization: Bearer and_xxxxxxxxxxxx
 ```
 
-当前开放接口：
+**Scope 权限范围：**
+
+| Scope | 权限 |
+|-------|------|
+| `folders:read` | 读取文件夹树 |
+| `folders:write` | 创建文件夹 |
+| `files:read` | 读取文件详情、下载文件 |
+| `files:upload` | 上传文件 |
+| `search:read` | 搜索文件 |
+
+### 端点列表
 
 | 方法 | 路径 | Scope | 功能 |
 |------|------|-------|------|
 | GET | `/api/v1/folders/tree` | `folders:read` | 读取文件夹树 |
 | POST | `/api/v1/folders` | `folders:write` | 创建文件夹 |
-| GET | `/api/v1/search?q=关键词` | `search:read` | 搜索文件 |
-| GET | `/api/v1/files/<id>` | `files:read` | 读取文件详情与下载路径 |
-| GET | `/api/v1/files/<id>/download` | `files:read` | 下载文件并记录下载日志 |
+| GET | `/api/v1/search?q=&folder_id=&limit=` | `search:read` | 搜索文件 |
+| GET | `/api/v1/files/<id>` | `files:read` | 读取文件详情 |
+| GET | `/api/v1/files/<id>/download` | `files:read` | 下载文件 |
 | POST | `/api/v1/files` | `files:upload` | 上传文件 |
 
-创建文件夹 JSON 示例：
+### 端点详情
 
+#### GET /api/v1/folders/tree
+
+获取完整的文件夹树结构。
+
+**响应示例：**
 ```json
 {
-  "parent_id": 1,
+  "tree": [
+    {
+      "id": 1,
+      "name": "根目录",
+      "parent_id": null,
+      "path": "/",
+      "description": null,
+      "children": [
+        {
+          "id": 2,
+          "name": "数学学院",
+          "parent_id": 1,
+          "path": "/数学学院",
+          "children": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### POST /api/v1/folders
+
+创建文件夹。
+
+**请求体（JSON）：**
+```json
+{
   "name": "数学学院",
+  "parent_id": 1,
   "description": "课程资料"
 }
 ```
 
-上传文件使用 `multipart/form-data`：
-
-```text
-file=@algebra.txt
-title=高等代数期末复习资料
-folder_id=2
-search_tags=数学,代数
-display_tags=数学
+**成功响应（201）：**
+```json
+{
+  "folder": {
+    "id": 3,
+    "name": "数学学院",
+    "parent_id": 1,
+    "path": "/数学学院",
+    "description": "课程资料",
+    "created_at": "2026-06-09T12:00:00",
+    "updated_at": "2026-06-09T12:00:00"
+  }
+}
 ```
 
-建议仅给机器人授予必要 scope；停用 Token 后会立即拒绝后续请求。删除类 API 暂未开放。
+**错误响应（400）：**
+```json
+{
+  "error": "invalid_folder",
+  "message": "文件夹名称不能为空"
+}
+```
+
+#### GET /api/v1/search
+
+搜索文件。支持关键词搜索，可限定文件夹范围。
+
+**查询参数：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `q` | string | (空) | 搜索关键词，空格分隔多词 |
+| `folder_id` | int | (可选) | 限制搜索范围到指定文件夹 |
+| `limit` | int | 20 | 返回数量上限，范围 1～100 |
+
+**响应示例：**
+```json
+{
+  "files": [
+    {
+      "id": 1,
+      "title": "高等代数期末复习资料",
+      "original_filename": "algebra.txt",
+      "file_size": 102400,
+      "folder_id": 2,
+      "folder_path": "/数学学院",
+      "display_tags": ["数学"],
+      "search_tags": ["数学", "代数", "期末"],
+      "download_count": 42,
+      "created_at": "2026-06-07T10:00:00",
+      "updated_at": "2026-06-07T10:00:00"
+    }
+  ]
+}
+```
+
+#### GET /api/v1/files/<id>
+
+获取文件详情。
+
+**响应示例：**
+```json
+{
+  "file": {
+    "id": 1,
+    "title": "高等代数期末复习资料",
+    "original_filename": "algebra.txt",
+    "file_size": 102400,
+    "folder_id": 2,
+    "folder_path": "/数学学院",
+    "display_tags": ["数学"],
+    "search_tags": ["数学", "代数", "期末"],
+    "download_count": 42,
+    "created_at": "2026-06-07T10:00:00",
+    "updated_at": "2026-06-07T10:00:00",
+    "download_url": "/api/v1/files/1/download"
+  }
+}
+```
+
+#### GET /api/v1/files/<id>/download
+
+下载文件。会记录下载日志并增加计数。
+
+**响应：** 文件二进制流（`Content-Disposition: attachment`）
+
+#### POST /api/v1/files
+
+上传文件。
+
+**请求体（`multipart/form-data`）：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `file` | file | 是 | 上传文件 |
+| `title` | string | 是 | 显示标题 |
+| `folder_id` | int | 是 | 所属文件夹 ID |
+| `search_tags` | string | 否 | 逗号分隔的检索标签 |
+| `display_tags` | string | 否 | 逗号分隔的展示标签 |
+
+**成功响应（201）：** 与 `GET /api/v1/files/<id>` 格式相同，包含 `download_url`。
+
+**错误响应（400）：**
+```json
+{
+  "error": "unsupported_file_type",
+  "message": null
+}
+```
+
+### 安全说明
+
+- Token 创建者的管理员账号被禁用后，Token 立即失效
+- Token 停用后立即拒绝后续请求
+- 建议仅授予机器人必要的最小 Scope
+- 删除类 API 暂未开放
+
+---
+
+## AJAX 接口
+
+### POST /send_code
+
+发送验证码到指定邮箱。
+
+**请求体（JSON）：**
+```json
+{
+  "email": "user@example.com",
+  "purpose": "register"
+}
+```
+
+`purpose` 可选值：`register`（需校园网验证），`reset`（无需校园网验证）。
+
+**成功响应：**
+```json
+{
+  "success": true,
+  "message": "验证码已发送"
+}
+```
+
+**错误响应：**
+```json
+{
+  "success": false,
+  "message": "发送太频繁，请60秒后再试"
+}
+```
+
+### GET /campus_verify/config
+
+获取校园网验证挑战。
+
+**响应示例：**
+```json
+{
+  "enabled": true,
+  "nonce": "a1b2c3d4e5f6...",
+  "images": [
+    {"url": "https://zb.hit.edu.cn/images/help/xxx.png", "md5": "..."}
+  ],
+  "generatedAt": "2026-06-07T00:00:00Z"
+}
+```
+
+### POST /campus_verify/check
+
+校验浏览器提交的校园网图片加载证明。
+
+**请求体（JSON）：**
+```json
+{
+  "proofs": [
+    {
+      "url": "https://zb.hit.edu.cn/images/help/xxx.png",
+      "width": 640,
+      "height": 480,
+      "proof": "sha256(nonce|url|md5|widthxheight)"
+    }
+  ]
+}
+```
+
+**成功响应：**
+```json
+{
+  "success": true,
+  "message": "校园网验证通过"
+}
+```
 
 ---
 
@@ -311,11 +561,25 @@ display_tags=数学
 | `download_count` | Integer | 累计下载次数 |
 | `created_at` / `updated_at` | DateTime | 创建/更新时间 |
 
+### Folder 文件夹
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | Integer PK | |
+| `name` | String(120) | 文件夹名称 |
+| `parent_id` | FK(Folder) | 父文件夹 ID，根目录为 NULL |
+| `path` | String(1000) | 完整路径，如 `/数学学院/高等代数` |
+| `description` | Text | 描述 |
+| `sort_order` | Integer | 排序序号 |
+| `created_at` / `updated_at` | DateTime | 创建/更新时间 |
+
 ### 其他模型
 
 - **VerificationCode** — 注册/找回密码验证码（6 位数字，有效期 10 分钟，60 秒重发限制）
 - **DownloadLog** — 下载日志（文件、用户、IP、时间）
 - **OperationLog** — 操作审计日志（上传、编辑、删除、禁言、密码重置、管理员变更等）
+- **ApiToken** — 机器人 API 令牌（SHA-256 哈希存储，支持 Scope 权限控制）
+- **FileEmbedding** — 语义搜索向量（`sentence-transformers` 编码，用于 embedding 搜索）
 
 ---
 
@@ -347,7 +611,7 @@ display_tags=数学
 
 ## 安全策略
 
-1. **密码传输**：前端使用 Web Crypto API 做 SHA-256 哈希后传输，后端使用 Werkzeug 的 `generate_password_hash`（bcrypt）存储
+1. **密码传输**：前端使用 Web Crypto API 做 SHA-256 哈希后通过隐藏字段提交（密码框内容不改写，浏览器密码管理器保存明文密码），后端仅接受 64 位十六进制格式，使用 bcrypt 存储
 2. **验证码**：60 秒重发限制，10 分钟有效期，一次性使用
 3. **CSRF 保护**：Flask-WTF 所有表单自动 CSRF 令牌
 4. **文件上传**：后缀白名单（`pdf, doc, docx, jpg, png, ...`），文件大小限制，SHA-256 重命名防冲突
@@ -360,7 +624,7 @@ display_tags=数学
 
 - **样式**：纯 CSS，无前端框架 — 浅蓝/白色主色调，卡片式布局，圆角边框，柔和阴影
 - **响应式**：flexbox/grid 布局，适配桌面 -> 平板 -> 手机
-- **密码哈希**：原生 `crypto.subtle.digest('SHA-256', ...)`，无外部依赖
+- **密码哈希**：优先 `crypto.subtle.digest('SHA-256', ...)`，HTTP 环境自动降级为纯 JS SHA-256 实现；通过隐藏字段提交哈希，不改写密码框内容
 - **验证码**：AJAX 发送 + 前端 60 秒倒计时
 
 ---
