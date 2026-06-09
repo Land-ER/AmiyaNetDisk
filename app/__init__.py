@@ -1,13 +1,12 @@
 import os
-import hashlib
 from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
-from werkzeug.security import generate_password_hash
 from app.config import config_map
 from app.models import db, User
+from app.passwords import generate_user_password_hash
 from app.schema import ensure_schema
 
 login_manager = LoginManager()
@@ -70,9 +69,7 @@ def _ensure_root_user(app):
     root_email = app.config['ROOT_EMAIL']
     root_password = app.config['ROOT_PASSWORD']
 
-    # 前端传输的是 SHA-256(明文)，所以 root 密码也要哈希后存储
-    hashed_pwd = hashlib.sha256(root_password.encode('utf-8')).hexdigest()
-    pwd_hash = generate_password_hash(hashed_pwd)
+    pwd_hash = generate_user_password_hash(root_password)
 
     root_user = User.query.filter_by(role='root').first()
     if root_user:

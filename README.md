@@ -348,7 +348,7 @@ display_tags=数学
 
 ## 安全策略
 
-1. **密码传输**：前端使用 Web Crypto API 做 SHA-256 哈希后传输，后端使用 Werkzeug 的 `generate_password_hash`（bcrypt）存储
+1. **密码处理**：前端使用 Web Crypto API 做 SHA-256 哈希后通过隐藏字段提交，避免改写可见密码框；后端拒收表单明文密码，并使用 Werkzeug 的 `generate_password_hash` 存储
 2. **验证码**：60 秒重发限制，10 分钟有效期，一次性使用
 3. **CSRF 保护**：Flask-WTF 所有表单自动 CSRF 令牌
 4. **文件上传**：后缀白名单（`pdf, doc, docx, jpg, png, ...`），文件大小限制，SHA-256 重命名防冲突

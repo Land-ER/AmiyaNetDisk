@@ -17,12 +17,64 @@ async function sha256(str) {
         var hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
     } catch(e) {
-        // crypto.subtle 不可用时直接返回原文
-        return str;
+        throw e;
     }
 }
 // 模板中调用的是 hashPassword，作为 sha256 的别名
 var hashPassword = sha256;
+
+function isSha256Hex(value) {
+    return /^[a-f0-9]{64}$/i.test(value || '');
+}
+
+function submitFormWithHashedPassword(form, passwordInput) {
+    if (!form || !passwordInput || passwordInput.dataset.hashing === 'true') {
+        return;
+    }
+
+    passwordInput.dataset.hashing = 'true';
+
+    function submitForm() {
+        HTMLFormElement.prototype.submit.call(form);
+    }
+
+    function submitWithPassword(value) {
+        var fieldName = passwordInput.getAttribute('name');
+        if (fieldName) {
+            var hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = fieldName;
+            hidden.value = value;
+            form.appendChild(hidden);
+            passwordInput.removeAttribute('name');
+        }
+        submitForm();
+    }
+
+    var currentValue = passwordInput.value;
+    if (isSha256Hex(currentValue)) {
+        submitWithPassword(currentValue);
+        return;
+    }
+
+    if (typeof hashPassword !== 'function') {
+        passwordInput.dataset.hashing = 'false';
+        alert('当前浏览器不支持安全密码处理，请更换浏览器或启用安全上下文后重试。');
+        return;
+    }
+
+    hashPassword(currentValue).then(function(hash) {
+        if (isSha256Hex(hash)) {
+            submitWithPassword(hash);
+            return;
+        }
+        passwordInput.dataset.hashing = 'false';
+        alert('密码安全处理失败，请刷新页面后重试。');
+    }).catch(function() {
+        passwordInput.dataset.hashing = 'false';
+        alert('密码安全处理失败，请刷新页面后重试。');
+    });
+}
 
 /**
  * 格式化文件大小

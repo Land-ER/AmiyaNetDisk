@@ -49,6 +49,28 @@ def test_login_rejects_external_next_redirect(client):
     assert response.location == '/'
 
 
+def test_login_rejects_plain_password_from_form(client):
+    response = client.post('/login', data={
+        'csrf_token': csrf_from_response(client.get('/login')),
+        'email': 'root@example.com',
+        'password': 'root123456',
+    })
+
+    assert response.status_code == 200
+    assert '密码安全处理失败'.encode('utf-8') in response.data
+
+
+def test_login_accepts_saved_sha256_password_without_double_hashing(client):
+    response = client.post('/login', data={
+        'csrf_token': csrf_from_response(client.get('/login')),
+        'email': 'root@example.com',
+        'password': sha256_password('root123456'),
+    })
+
+    assert response.status_code == 302
+    assert response.location == '/'
+
+
 def test_admin_reset_password_page_hashes_password_before_submit(client, root_user, normal_user):
     login_as(client, root_user)
 
@@ -56,7 +78,16 @@ def test_admin_reset_password_page_hashes_password_before_submit(client, root_us
 
     assert response.status_code == 200
     assert b'id="adminResetPasswordForm"' in response.data
-    assert b'hashPassword(pwd.value)' in response.data
+    assert b'submitFormWithHashedPassword(this, pwd)' in response.data
+
+
+def test_password_hash_submitter_does_not_overwrite_visible_password(client):
+    response = client.get('/login')
+
+    assert response.status_code == 200
+    assert b'submitFormWithHashedPassword(this, pwd)' in response.data
+    assert b'pwd.value = hash' not in response.data
+    assert b'submitWithPassword(currentValue);' not in response.data
 
 
 def test_admin_reset_password_matches_login_hash_flow(client, app, root_user, normal_user):
@@ -85,9 +116,25 @@ def test_admin_reset_password_matches_login_hash_flow(client, app, root_user, no
         assert check_password_hash(user.password_hash, sha256_password('new-password'))
 
 
+def test_admin_reset_password_rejects_plain_password_without_javascript(client, app, root_user, normal_user):
+    login_as(client, root_user)
+
+    page = client.get(f'/admin/user/{normal_user.id}/reset_password')
+    token = csrf_from_response(page)
+    response = client.post(f'/admin/user/{normal_user.id}/reset_password', data={
+        'csrf_token': token,
+        'password': 'plain-new-password',
+    })
+    assert response.status_code == 200
+    assert '密码安全处理失败'.encode('utf-8') in response.data
+
+    with app.app_context():
+        user = db.session.get(User, normal_user.id)
+        assert not check_password_hash(user.password_hash, sha256_password('plain-new-password'))
+
+
 def get_root_id(app):
     from app.folders import get_root_folder
 
     with app.app_context():
         return get_root_folder().id
-

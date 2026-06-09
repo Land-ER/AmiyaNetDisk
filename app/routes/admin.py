@@ -5,10 +5,10 @@ import json
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response, jsonify
 from flask_login import current_user
-from werkzeug.security import generate_password_hash
 from app.models import db, File, DownloadLog, OperationLog, User, Folder, ApiToken
 from app.forms import UploadForm, FileEditForm
 from app.decorators import admin_required
+from app.passwords import generate_user_password_hash, is_sha256_hex
 from app.utils import (
     allowed_file,
     get_file_extension,
@@ -568,7 +568,11 @@ def reset_user_password(user_id):
             flash('密码长度不能少于6位', 'danger')
             return render_template('admin/reset_password.html', target_user=user)
 
-        user.password_hash = generate_password_hash(new_password)
+        if not is_sha256_hex(new_password):
+            flash('密码安全处理失败，请刷新页面后重试', 'danger')
+            return render_template('admin/reset_password.html', target_user=user)
+
+        user.password_hash = generate_user_password_hash(new_password)
 
         log = OperationLog(
             admin_id=current_user.id,
