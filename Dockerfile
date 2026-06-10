@@ -11,6 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 预下载 Embedding 模型（设置 BUILD_EMBEDDING=1 启用语义搜索）
+ARG BUILD_EMBEDDING=
+ARG HF_ENDPOINT=https://hf-mirror.com
+RUN if [ "$BUILD_EMBEDDING" = "1" ]; then \
+        pip install --no-cache-dir "sentence-transformers>=3.0,<4.0" && \
+        python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')" && \
+        echo "✓ Embedding model pre-downloaded"; \
+    fi
+
 # 复制项目文件
 COPY . .
 

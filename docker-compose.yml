@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        BUILD_EMBEDDING: "1"
     ports:
       - "5000:5000"
     volumes:
